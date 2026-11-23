@@ -43,7 +43,7 @@
             scrollbar-width: none;
         }
     </style>
-    <!-- 匯出獨立網頁時自動寫入的預設設定 -->
+    <!-- 匯出獨立網頁時自動寫入的預設設定（請先在後台設定好 Google 日曆同步再匯出） -->
     <script id="preset-config">
         window.PRESET_CONFIG = {
             webhook1: "",
@@ -58,7 +58,7 @@
     <!-- 頂部導覽列 -->
     <header class="bg-white/95 backdrop-blur-md border-b border-slate-200 sticky top-0 z-30">
         <div class="max-w-6xl mx-auto px-4 sm:px-6 py-3.5 flex items-center justify-between gap-3">
-            <!-- 診所標誌與名稱（連續點擊 5 次可於本機解鎖/隱藏時間表管理） -->
+            <!-- 診所標誌與名稱（連續點擊 5 次可解鎖/隱藏時間表管理） -->
             <div onclick="handleSecretAdminTap()" class="flex items-center gap-3 min-w-0 cursor-pointer select-none" title="痛症調理中心">
                 <div class="w-10 h-10 rounded-xl bg-brand-600 text-white flex items-center justify-center shrink-0 shadow-sm">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
@@ -92,8 +92,8 @@
                 <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                     <div>
                         <div class="inline-flex items-center gap-1.5 bg-white/15 backdrop-blur-sm px-3 py-1 rounded-full text-xs font-medium mb-2.5">
-                            <span class="w-2 h-2 rounded-full bg-emerald-300"></span>
-                            網上即時預約・無須等候
+                            <span id="live-sync-dot" class="w-2 h-2 rounded-full bg-emerald-300"></span>
+                            <span id="live-sync-label">網上即時預約・無須等候</span>
                         </div>
                         <h2 class="text-xl sm:text-2xl font-bold tracking-tight">痛症調理中心 網上預約</h2>
                         <p class="text-teal-50 text-sm mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1">
@@ -118,12 +118,20 @@
 
                     <!-- 步驟 1：選擇預約日期與時段 -->
                     <div class="bg-white rounded-2xl border border-slate-200 p-5 sm:p-6 shadow-sm">
-                        <div class="flex items-center justify-between gap-2 mb-4">
+                        <div class="flex flex-wrap items-center justify-between gap-2 mb-4">
                             <div class="flex items-center gap-2.5">
                                 <span class="w-7 h-7 rounded-full bg-brand-600 text-white text-sm font-bold flex items-center justify-center">1</span>
                                 <h3 class="text-base sm:text-lg font-bold text-slate-900">選擇預約日期與時段</h3>
                             </div>
-                            <span class="text-xs text-slate-500">可預約未來 14 天</span>
+                            <div class="flex items-center gap-2">
+                                <span id="slot-sync-status" class="text-xs text-slate-500">可預約未來 14 天</span>
+                                <button type="button" onclick="refreshCloudSlots(true)" id="btn-refresh-slots" class="hidden inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-medium transition-all" title="重新整理最新時段">
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                    </svg>
+                                    更新時段
+                                </button>
+                            </div>
                         </div>
 
                         <!-- 橫向日期列 -->
@@ -201,7 +209,7 @@
                             <!-- 手機版提交按鈕 -->
                             <div class="lg:hidden pt-2">
                                 <button type="submit" id="mobile-submit-btn"
-                                    class="w-full py-3.5 px-5 rounded-xl bg-brand-600 hover:bg-brand-700 active:scale-[0.99] text-white font-semibold text-base shadow-sm transition-all">
+                                    class="w-full py-3.5 px-5 rounded-xl bg-brand-600 hover:bg-brand-700 active:scale-[0.99] disabled:opacity-60 disabled:cursor-not-allowed text-white font-semibold text-base shadow-sm transition-all">
                                     確認提交預約（HK$800）
                                 </button>
                             </div>
@@ -241,7 +249,7 @@
                         </div>
 
                         <button type="button" onclick="triggerFormSubmit()" id="desktop-submit-btn"
-                            class="hidden lg:flex w-full items-center justify-center gap-2 py-3.5 px-5 rounded-xl bg-brand-600 hover:bg-brand-700 active:scale-[0.99] text-white font-semibold text-sm shadow-sm transition-all">
+                            class="hidden lg:flex w-full items-center justify-center gap-2 py-3.5 px-5 rounded-xl bg-brand-600 hover:bg-brand-700 active:scale-[0.99] disabled:opacity-60 disabled:cursor-not-allowed text-white font-semibold text-sm shadow-sm transition-all">
                             確認提交預約
                         </button>
 
@@ -259,14 +267,20 @@
             <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
                     <h2 class="text-lg sm:text-xl font-bold text-slate-900">時間表管理</h2>
-                    <p class="text-xs sm:text-sm text-slate-500 mt-0.5">查看每日客人預約、設定 Google 日曆自動同步或匯出專屬網頁</p>
+                    <p class="text-xs sm:text-sm text-slate-500 mt-0.5">同步查看 Google 日曆上的全部客人預約、設定雙向同步或匯出網頁</p>
                 </div>
                 <div class="flex flex-wrap items-center gap-2.5">
+                    <button onclick="refreshAdminSchedule(true)" class="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs sm:text-sm font-semibold transition-all">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                        </svg>
+                        從日曆重新同步
+                    </button>
                     <button onclick="openGcalModal()" class="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs sm:text-sm font-semibold transition-all border border-blue-200">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                         </svg>
-                        Google 日曆自動同步
+                        Google 日曆雙向同步
                         <span id="gcal-status-dot" class="w-2 h-2 rounded-full bg-slate-300"></span>
                     </button>
                     <button onclick="openExportModal()" class="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs sm:text-sm font-semibold transition-all shadow-sm">
@@ -276,6 +290,12 @@
                         匯出網頁 / 取得網址
                     </button>
                 </div>
+            </div>
+
+            <!-- 雲端同步提示條 -->
+            <div id="admin-sync-banner" class="hidden rounded-2xl p-4 text-xs sm:text-sm border flex items-center justify-between gap-3">
+                <span id="admin-sync-banner-text"></span>
+                <button onclick="openGcalModal()" class="shrink-0 underline font-semibold">立即設定</button>
             </div>
 
             <!-- 日期篩選與統計卡片 -->
@@ -309,7 +329,7 @@
             <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
                 <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
                     <h3 class="font-bold text-slate-900 text-sm sm:text-base">預約記錄列表</h3>
-                    <span class="text-xs text-slate-400">依日期與時間排序</span>
+                    <span id="schedule-source-label" class="text-xs text-slate-400">依日期與時間排序</span>
                 </div>
                 <div id="schedule-list" class="divide-y divide-slate-100">
                     <!-- 由 JS 動態產生 -->
@@ -371,7 +391,7 @@
                 </button>
                 <a id="modal-gcal-link" href="#" target="_blank" rel="noopener noreferrer"
                     class="w-full py-3 px-4 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-700 font-semibold text-sm transition-all flex items-center justify-center gap-2 border border-blue-200">
-                    一鍵加入 Google 日曆
+                    加入我的 Google 日曆提醒
                 </a>
                 <button onclick="closeSuccessModal()" class="w-full py-2.5 px-4 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-sm transition-all">
                     完成並返回
@@ -380,50 +400,59 @@
         </div>
     </div>
 
-    <!-- ==================== 彈窗 2：Google 日曆自動同步設定 ==================== -->
+    <!-- ==================== 彈窗 2：Google 日曆雙向同步設定 ==================== -->
     <div id="gcal-modal" class="hidden fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
         <div class="bg-white rounded-2xl max-w-2xl w-full p-6 shadow-xl space-y-5 max-h-[90vh] overflow-y-auto">
             <div class="flex items-center justify-between border-b border-slate-100 pb-3">
                 <div>
-                    <h3 class="text-lg font-bold text-slate-900">Google 日曆自動同步設定</h3>
-                    <p class="text-xs text-slate-500 mt-0.5">客人提交預約後，自動寫入你的 Google 日曆（支援同步至另一個 Google 帳戶）</p>
+                    <h3 class="text-lg font-bold text-slate-900">Google 日曆雙向雲端同步設定</h3>
+                    <p class="text-xs text-slate-500 mt-0.5">啟用後：客人預約自動寫入日曆 ＋ 網頁自動同步顯示「已滿」給所有客人</p>
                 </div>
                 <button onclick="closeGcalModal()" class="p-2 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100">✕</button>
             </div>
 
             <div class="space-y-4">
                 <div>
-                    <label class="block text-sm font-semibold text-slate-700 mb-1">1. 主 Google 帳戶 Apps Script 網址（選填）</label>
-                    <input type="url" id="gcal-webhook-1" placeholder="https://script.google.com/macros/s/..../exec"
-                        class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:border-brand-500 outline-none">
+                    <label class="block text-sm font-semibold text-slate-700 mb-1">1. 主 Google 帳戶 Apps Script 網址（必填以啟用雲端更新）</label>
+                    <div class="flex gap-2">
+                        <input type="url" id="gcal-webhook-1" placeholder="https://script.google.com/macros/s/..../exec"
+                            class="flex-1 px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:border-brand-500 outline-none">
+                        <button type="button" onclick="testGcalConnection()" id="btn-test-gcal"
+                            class="px-3.5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm font-semibold shrink-0 transition-all">
+                            測試連線
+                        </button>
+                    </div>
+                    <p id="gcal-test-result" class="text-xs mt-1.5 hidden"></p>
+                    <p class="text-xs text-slate-500 mt-1">注意：網址結尾必須是 <code class="bg-slate-100 px-1 rounded font-semibold">/exec</code>（不是編輯頁面的 /edit）。</p>
                 </div>
 
                 <div>
-                    <label class="block text-sm font-semibold text-slate-700 mb-1">2. 同步至另一個 Google 帳戶 Email（方法 A：最簡單）</label>
-                    <input type="text" id="gcal-extra-emails" placeholder="例如：partner@gmail.com（多個帳戶可用逗號分隔）"
+                    <label class="block text-sm font-semibold text-slate-700 mb-1">2. 同步至另一個 Google 帳戶 Email（選填）</label>
+                    <input type="text" id="gcal-extra-emails" placeholder="例如：partner@gmail.com（多個可用逗號分隔）"
                         class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:border-brand-500 outline-none">
-                    <p class="text-xs text-slate-500 mt-1">會自動把此 Gmail 加入為日曆活動嘉賓，直接顯示於對方日曆（同時支援一鍵加入日曆按鈕）。</p>
+                    <p class="text-xs text-slate-500 mt-1">客人預約時會自動把此 Gmail 加入為日曆活動嘉賓，即時顯示在對方日曆上。</p>
                 </div>
 
                 <div>
-                    <label class="block text-sm font-semibold text-slate-700 mb-1">3. 第二個 Google 帳戶 Apps Script 網址（方法 B：獨立寫入，選填）</label>
+                    <label class="block text-sm font-semibold text-slate-700 mb-1">3. 第二個 Google 帳戶 Apps Script 網址（選填）</label>
                     <input type="url" id="gcal-webhook-2" placeholder="https://script.google.com/macros/s/..../exec"
                         class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:border-brand-500 outline-none">
                 </div>
 
-                <!-- 教學折疊區 -->
+                <!-- 教學區 -->
                 <div class="bg-slate-50 rounded-xl p-4 border border-slate-200 space-y-3">
-                    <div class="flex items-center justify-between">
-                        <span class="text-xs font-bold text-slate-700">如何取得免費 Apps Script 網址？（4 步驟）</span>
-                        <button onclick="copyAppsScriptCode()" class="px-3 py-1.5 rounded-lg bg-brand-600 hover:bg-brand-700 text-white text-xs font-semibold transition-all">
-                            複製 Apps Script 程式碼
+                    <div class="flex flex-wrap items-center justify-between gap-2">
+                        <span class="text-xs font-bold text-slate-700">最新版「雙向同步」Apps Script 程式碼（支援寫入＋自動更新網頁）</span>
+                        <button type="button" onclick="copyAppsScriptCode()" class="px-3 py-1.5 rounded-lg bg-brand-600 hover:bg-brand-700 text-white text-xs font-semibold transition-all">
+                            複製新版 Apps Script 程式碼
                         </button>
                     </div>
                     <ol class="text-xs text-slate-600 space-y-1.5 list-decimal list-inside leading-relaxed">
-                        <li>前往 <a href="https://script.google.com/" target="_blank" class="text-brand-700 underline font-medium">script.google.com</a> 並點擊左上角「新增專案」。</li>
-                        <li>刪除原本內容，貼上剛複製的程式碼並按儲存。</li>
-                        <li>按右上角「部署」→「新增部署作業」→ 類型選「網頁應用程式」→「誰可以存取」選「<strong>所有人</strong>」→ 按「部署」並授權。</li>
-                        <li>複製產生的「網頁應用程式網址」，貼到上方第 1 格按儲存即可！</li>
+                        <li>前往 <a href="https://script.google.com/" target="_blank" class="text-brand-700 underline font-medium">script.google.com</a>，打開你原本的專案（或按「新增專案」）。</li>
+                        <li><strong>全選並覆蓋</strong>貼上剛複製的新版程式碼，按上方磁碟圖示儲存。</li>
+                        <li>按右上角「部署」→「<strong>新增部署作業</strong>」→ 類型選「網頁應用程式」→ 執行身分選「<strong>我</strong>」→ 誰可以存取務必選「<strong>所有人</strong>」→ 按「部署」並完成授權。</li>
+                        <li>複製產生的「網頁應用程式網址（結尾為 /exec）」，貼到上方第 1 格 → 按<strong>「測試連線」</strong>確認出現綠色成功訊息 → 按「儲存設定」。</li>
+                        <li class="text-rose-600 font-semibold">重要：儲存後，必須再點「匯出網頁 / 取得網址」重新下載 index.html 並覆蓋上傳到 GitHub，客人的網址才會生效！</li>
                     </ol>
                 </div>
             </div>
@@ -441,12 +470,15 @@
             <div class="flex items-center justify-between border-b border-slate-100 pb-3">
                 <div>
                     <h3 class="text-lg font-bold text-slate-900">匯出網頁 / GitHub Pages 取得專屬網址</h3>
-                    <p class="text-xs text-slate-500 mt-0.5">下載包含你目前設定的獨立 index.html，免費發佈到 GitHub 即可給客人使用</p>
+                    <p class="text-xs text-slate-500 mt-0.5">下載已內建你 Google 日曆同步設定的 index.html 並上傳到 GitHub</p>
                 </div>
                 <button onclick="closeExportModal()" class="p-2 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100">✕</button>
             </div>
 
             <div class="space-y-4">
+                <!-- 匯出前檢查同步網址是否已內建 -->
+                <div id="export-sync-check" class="p-3.5 rounded-xl border text-xs leading-relaxed"></div>
+
                 <!-- 隱藏後台選項 -->
                 <label class="flex items-start gap-3 p-3.5 rounded-xl bg-slate-50 border border-slate-200 cursor-pointer">
                     <input type="checkbox" id="export-hide-admin" checked class="mt-0.5 w-4 h-4 text-brand-600 rounded border-slate-300 focus:ring-brand-500">
@@ -465,11 +497,11 @@
 
                 <!-- GitHub Pages 網址產生器 -->
                 <div class="bg-slate-50 rounded-xl p-4 border border-slate-200 space-y-3">
-                    <div class="text-xs font-bold text-slate-800">GitHub Pages 專屬網址產生器</div>
+                    <div class="text-xs font-bold text-slate-800">GitHub Pages 專屬網址</div>
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div>
                             <label class="block text-xs text-slate-500 mb-1">你的 GitHub 帳號名稱</label>
-                            <input type="text" id="gh-username" oninput="updateGithubUrlPreview()" placeholder="例如：frhaies"
+                            <input type="text" id="gh-username" oninput="updateGithubUrlPreview()" value="frhaies"
                                 class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm bg-white outline-none focus:border-brand-500">
                         </div>
                         <div>
@@ -482,14 +514,14 @@
                         <div class="flex items-center justify-between gap-2 bg-white px-3 py-2 rounded-lg border border-slate-200">
                             <div class="truncate text-xs">
                                 <span class="text-slate-400 block">客人預約網址：</span>
-                                <span id="gh-guest-url" class="font-mono font-semibold text-brand-700">https://你的帳號.github.io/booking/</span>
+                                <span id="gh-guest-url" class="font-mono font-semibold text-brand-700">https://frhaies.github.io/booking/</span>
                             </div>
                             <button onclick="copyGithubUrl('guest')" class="px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold shrink-0">複製</button>
                         </div>
                         <div class="flex items-center justify-between gap-2 bg-white px-3 py-2 rounded-lg border border-slate-200">
                             <div class="truncate text-xs">
                                 <span class="text-slate-400 block">店主後台網址：</span>
-                                <span id="gh-admin-url" class="font-mono font-semibold text-slate-700">https://你的帳號.github.io/booking/?admin=1</span>
+                                <span id="gh-admin-url" class="font-mono font-semibold text-slate-700">https://frhaies.github.io/booking/?admin=1</span>
                             </div>
                             <button onclick="copyGithubUrl('admin')" class="px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold shrink-0">複製</button>
                         </div>
@@ -500,8 +532,8 @@
                 <div class="text-xs text-slate-600 space-y-1.5 leading-relaxed bg-blue-50/70 p-4 rounded-xl border border-blue-100">
                     <div class="font-bold text-blue-900 mb-1">GitHub 上傳更新步驟：</div>
                     <p>1. 點擊上方綠色按鈕下載 <code class="bg-white px-1 rounded font-semibold">index.html</code>（確保檔名完全小寫，不可為 index (1).html）。</p>
-                    <p>2. 進入你的 GitHub 專案（Public）→ 點「Add file」→「Upload files」→ 拖曳上傳覆蓋舊檔並按「Commit changes」。</p>
-                    <p>3. 確認「Settings → Pages」的 Branch 為 <strong>main</strong> 且資料夾為 <strong>/(root)</strong>，等約 1–2 分鐘即可生效。</p>
+                    <p>2. 進入你的 GitHub 專案 → 點「Add file」→「Upload files」→ 拖曳上傳覆蓋舊檔並按「Commit changes」。</p>
+                    <p>3. 等待 1–2 分鐘後，用無痕視窗重新開啟網址即可完成更新。</p>
                 </div>
             </div>
         </div>
@@ -511,10 +543,10 @@
     <div id="confirm-cancel-modal" class="hidden fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
         <div class="bg-white rounded-2xl max-w-sm w-full p-6 shadow-xl space-y-4">
             <h3 class="text-lg font-bold text-slate-900">確定要取消此預約？</h3>
-            <p id="confirm-cancel-text" class="text-sm text-slate-600">取消後該時段會即時釋放給其他客人預約。</p>
+            <p id="confirm-cancel-text" class="text-sm text-slate-600">取消後該時段會即時從 Google 日曆移除並釋放給其他客人。</p>
             <div class="flex items-center justify-end gap-2.5 pt-2">
                 <button onclick="closeConfirmCancelModal()" class="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-semibold">返回</button>
-                <button onclick="executeCancelBooking()" class="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-sm font-semibold">確定取消</button>
+                <button onclick="executeCancelBooking()" id="btn-confirm-cancel" class="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-sm font-semibold">確定取消</button>
             </div>
         </div>
     </div>
@@ -543,11 +575,15 @@
 
         // 應用程式狀態
         let availableDates = [];
-        let bookings = [];
+        let localBookings = [];     // 本機暫存預約
+        let cloudBookedSet = new Set(); // 從 Google 日曆讀取的已滿時段 ("YYYY-MM-DD|HH:00")
+        let cloudAdminBookings = [];    // 後台從 Google 日曆讀取的完整預約清單
+        let isCloudSynced = false;
         let selectedDate = '';
         let selectedTime = '';
         let latestBooking = null;
-        let pendingCancelId = null;
+        let pendingCancelTarget = null;
+        let isSubmitting = false;
 
         // 2. 初始化應用程式
         function initApp() {
@@ -565,8 +601,8 @@
                     }
                 }
 
-                // 載入預約與同步設定
-                loadBookings();
+                // 載入本機暫存與同步設定
+                loadLocalBookings();
                 updateGcalStatusIndicator();
 
                 // 產生未來 14 天日期並選取今天
@@ -575,11 +611,21 @@
                     selectedDate = availableDates[0].dateStr;
                 }
 
-                // 渲染日期、時段、摘要與後台清單
+                // 先渲染介面
                 renderDateStrip();
                 renderTimeSlots();
                 updateSummary();
                 renderScheduleList();
+
+                // 若有設定 Google 日曆同步網址，立即從雲端讀取最新已滿時段
+                const config = getGcalConfig();
+                if (config.webhook1) {
+                    document.getElementById('btn-refresh-slots')?.classList.remove('hidden');
+                    refreshCloudSlots(false);
+                    if (isAdminMode) {
+                        refreshAdminSchedule(false);
+                    }
+                }
             } catch (err) {
                 console.error('初始化失敗:', err);
                 showToast('系統載入發生異常，請重新整理頁面', 'error');
@@ -615,25 +661,21 @@
             }
         }
 
-        // 4. 資料存取（LocalStorage）
-        function loadBookings() {
+        // 4. 資料存取（LocalStorage + Preset Config）
+        function loadLocalBookings() {
             try {
                 const raw = localStorage.getItem(STORAGE_KEY_BOOKINGS);
-                if (raw) {
-                    bookings = JSON.parse(raw);
-                } else {
-                    bookings = [];
-                }
+                localBookings = raw ? JSON.parse(raw) : [];
             } catch (e) {
-                bookings = [];
+                localBookings = [];
             }
         }
 
-        function saveBookings() {
+        function saveLocalBookings() {
             try {
-                localStorage.setItem(STORAGE_KEY_BOOKINGS, JSON.stringify(bookings));
+                localStorage.setItem(STORAGE_KEY_BOOKINGS, JSON.stringify(localBookings));
             } catch (e) {
-                console.error('儲存預約失敗:', e);
+                console.error('儲存本機預約失敗:', e);
             }
         }
 
@@ -646,14 +688,89 @@
             } catch (e) {
                 saved = {};
             }
+            // 優先採用使用者在本機更新的值，否則採用匯出檔案內建的 PRESET_CONFIG
             return {
-                webhook1: (saved.webhook1 !== undefined ? saved.webhook1 : (preset.webhook1 || '')).trim(),
-                webhook2: (saved.webhook2 !== undefined ? saved.webhook2 : (preset.webhook2 || '')).trim(),
-                extraEmails: (saved.extraEmails !== undefined ? saved.extraEmails : (preset.extraEmails || '')).trim()
+                webhook1: (saved.webhook1 !== undefined && saved.webhook1 !== '' ? saved.webhook1 : (preset.webhook1 || '')).trim(),
+                webhook2: (saved.webhook2 !== undefined && saved.webhook2 !== '' ? saved.webhook2 : (preset.webhook2 || '')).trim(),
+                extraEmails: (saved.extraEmails !== undefined && saved.extraEmails !== '' ? saved.extraEmails : (preset.extraEmails || '')).trim()
             };
         }
 
-        // 5. 渲染日期列與時段按鈕
+        // 5. 雲端雙向同步：從 Google 日曆讀取最新已預約時段（供所有客人即時更新）
+        async function refreshCloudSlots(showFeedback = false) {
+            const config = getGcalConfig();
+            if (!config.webhook1) return;
+
+            const statusEl = document.getElementById('slot-sync-status');
+            const liveLabel = document.getElementById('live-sync-label');
+            const liveDot = document.getElementById('live-sync-dot');
+
+            if (statusEl) statusEl.textContent = '正在同步最新時段...';
+
+            try {
+                const sep = config.webhook1.includes('?') ? '&' : '?';
+                const res = await fetch(`${config.webhook1}${sep}action=slots&_t=${Date.now()}`, {
+                    method: 'GET',
+                    redirect: 'follow'
+                });
+                const data = await res.json();
+                if (data && data.status === 'ok' && Array.isArray(data.bookedSlots)) {
+                    cloudBookedSet = new Set(data.bookedSlots.map(s => `${s.date}|${s.time}`));
+                    isCloudSynced = true;
+                    renderTimeSlots();
+                    if (statusEl) statusEl.textContent = '已與診所日曆即時同步';
+                    if (liveLabel) liveLabel.textContent = '即時連線・與診所日曆同步中';
+                    if (liveDot) liveDot.className = 'w-2 h-2 rounded-full bg-emerald-300 animate-pulse';
+                    if (showFeedback) showToast('已更新最新可預約時段！');
+                } else {
+                    throw new Error(data?.message || '回傳格式不正確');
+                }
+            } catch (err) {
+                console.warn('讀取雲端時段失敗:', err);
+                if (statusEl) statusEl.textContent = '可預約未來 14 天';
+                if (showFeedback) showToast('無法連線至 Google 日曆，請檢查 Apps Script 部署設定', 'error');
+            }
+        }
+
+        // 雲端讀取完整預約清單（供店主「時間表管理」跨裝置檢視）
+        async function refreshAdminSchedule(showFeedback = false) {
+            const config = getGcalConfig();
+            if (!config.webhook1) {
+                renderScheduleList();
+                if (showFeedback) showToast('請先設定 Google 日曆雙向同步網址', 'error');
+                return;
+            }
+
+            const sourceLabel = document.getElementById('schedule-source-label');
+            if (sourceLabel) sourceLabel.textContent = '正在從 Google 日曆讀取預約...';
+
+            try {
+                const sep = config.webhook1.includes('?') ? '&' : '?';
+                const res = await fetch(`${config.webhook1}${sep}action=admin&_t=${Date.now()}`, {
+                    method: 'GET',
+                    redirect: 'follow'
+                });
+                const data = await res.json();
+                if (data && data.status === 'ok' && Array.isArray(data.bookings)) {
+                    cloudAdminBookings = data.bookings;
+                    // 同步更新已滿時段集合
+                    cloudBookedSet = new Set(data.bookings.map(b => `${b.date}|${b.time}`));
+                    isCloudSynced = true;
+                    renderTimeSlots();
+                    renderScheduleList();
+                    if (sourceLabel) sourceLabel.textContent = `已同步 Google 日曆（共 ${cloudAdminBookings.length} 筆）`;
+                    if (showFeedback) showToast('已從 Google 日曆同步最新預約清單！');
+                } else {
+                    throw new Error(data?.message || '請更新 Apps Script 至最新版');
+                }
+            } catch (err) {
+                console.warn('讀取管理清單失敗:', err);
+                if (sourceLabel) sourceLabel.textContent = '目前顯示本機暫存記錄';
+                if (showFeedback) showToast('同步失敗：請確認已更新並重新部署新版 Apps Script', 'error');
+            }
+        }
+
+        // 6. 渲染日期列與時段按鈕
         function renderDateStrip() {
             const container = document.getElementById('date-strip');
             if (!container) return;
@@ -688,7 +805,12 @@
         }
 
         function isSlotBooked(dateStr, timeStr) {
-            return bookings.some(b => b.date === dateStr && b.time === timeStr);
+            if (cloudBookedSet.has(`${dateStr}|${timeStr}`)) return true;
+            // 若尚未啟用雲端同步，則以本機記錄作為判斷
+            if (!isCloudSynced) {
+                return localBookings.some(b => b.date === dateStr && b.time === timeStr);
+            }
+            return false;
         }
 
         function renderSlotGroup(containerId, slots) {
@@ -752,7 +874,7 @@
             return `${endH}:${endM}`;
         }
 
-        // 6. 提交預約流程
+        // 7. 提交預約流程（即時寫入 Google 日曆並檢查衝堂）
         function triggerFormSubmit() {
             const form = document.getElementById('booking-form');
             if (form) {
@@ -764,8 +886,23 @@
             }
         }
 
+        function setSubmitLoading(loading) {
+            isSubmitting = loading;
+            const dBtn = document.getElementById('desktop-submit-btn');
+            const mBtn = document.getElementById('mobile-submit-btn');
+            if (dBtn) {
+                dBtn.disabled = loading;
+                dBtn.textContent = loading ? '正在同步預約至診所日曆...' : '確認提交預約';
+            }
+            if (mBtn) {
+                mBtn.disabled = loading;
+                mBtn.textContent = loading ? '正在同步預約至診所日曆...' : '確認提交預約（HK$800）';
+            }
+        }
+
         async function handleBookingSubmit(event) {
             event.preventDefault();
+            if (isSubmitting) return;
 
             if (!selectedDate) {
                 showToast('請先選擇預約日期', 'error');
@@ -808,29 +945,94 @@
                 createdAt: new Date().toISOString()
             };
 
-            bookings.push(newBooking);
-            saveBookings();
-            latestBooking = newBooking;
+            const config = getGcalConfig();
+            let syncedToCloud = false;
 
-            // 清空表單與重設已選時段
-            nameInput.value = '';
-            phoneInput.value = '';
-            notesInput.value = '';
-            selectedTime = '';
+            setSubmitLoading(true);
 
-            renderTimeSlots();
-            updateSummary();
-            renderScheduleList();
+            try {
+                // 若有設定主 Google 日曆同步網址，先寫入日曆並檢查是否已被其他客人搶先預約
+                if (config.webhook1) {
+                    const result = await postBookingToWebhook(config.webhook1, newBooking, config.extraEmails);
+                    if (result && result.status === 'conflict') {
+                        showToast('該時段剛剛已被其他客人預約，請重新選擇其他時段', 'error');
+                        await refreshCloudSlots(false);
+                        setSubmitLoading(false);
+                        return;
+                    }
+                    if (result && result.status === 'ok') {
+                        syncedToCloud = true;
+                        if (result.eventId) newBooking.eventId = result.eventId;
+                    }
+                }
 
-            // 顯示成功彈窗
-            openSuccessModal(newBooking);
+                // 若有設定第二個 Google 帳戶 Apps Script，於背景同步寫入
+                if (config.webhook2) {
+                    postBookingToWebhook(config.webhook2, newBooking, '').catch(() => {});
+                }
 
-            // 背景自動同步至 Google 日曆（如有設定 Apps Script）
-            syncBookingToGoogleCalendar(newBooking);
+                // 更新本機與畫面的已滿時段
+                localBookings.push(newBooking);
+                saveLocalBookings();
+                cloudBookedSet.add(`${newBooking.date}|${newBooking.time}`);
+                if (syncedToCloud) {
+                    cloudAdminBookings.push(newBooking);
+                }
+                latestBooking = newBooking;
+
+                // 清空表單與重設已選時段
+                nameInput.value = '';
+                phoneInput.value = '';
+                notesInput.value = '';
+                selectedTime = '';
+
+                renderTimeSlots();
+                updateSummary();
+                renderScheduleList();
+
+                openSuccessModal(newBooking, syncedToCloud);
+            } catch (err) {
+                console.error('提交預約發生錯誤:', err);
+                showToast('連線日曆時發生問題，請稍後再試或聯絡診所', 'error');
+            } finally {
+                setSubmitLoading(false);
+            }
         }
 
-        // 7. 預約成功彈窗與 WhatsApp / Google 日曆連結
-        function openSuccessModal(booking) {
+        // 傳送預約至 Google Apps Script（使用 text/plain 避免 CORS preflight 阻擋）
+        async function postBookingToWebhook(url, booking, extraEmails) {
+            const payload = {
+                action: 'create',
+                ref: booking.ref,
+                name: booking.name,
+                phone: booking.phone,
+                date: booking.date,
+                time: booking.time,
+                durationMinutes: CLINIC_INFO.durationMinutes,
+                price: booking.price,
+                notes: booking.notes || '',
+                address: CLINIC_INFO.address,
+                clinicName: CLINIC_INFO.name,
+                extraEmails: extraEmails || ''
+            };
+
+            const res = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                redirect: 'follow',
+                body: JSON.stringify(payload)
+            });
+
+            const text = await res.text();
+            try {
+                return JSON.parse(text);
+            } catch (e) {
+                return { status: 'ok' };
+            }
+        }
+
+        // 8. 預約成功彈窗與 WhatsApp / Google 日曆連結
+        function openSuccessModal(booking, syncedToCloud) {
             document.getElementById('modal-ref').textContent = booking.ref;
             document.getElementById('modal-name').textContent = booking.name;
             document.getElementById('modal-phone').textContent = booking.phone;
@@ -841,12 +1043,11 @@
                 gcalLink.href = buildGoogleCalendarUrl(booking);
             }
 
-            const config = getGcalConfig();
             const syncNote = document.getElementById('modal-gcal-sync-note');
             if (syncNote) {
-                syncNote.textContent = (config.webhook1 || config.webhook2)
-                    ? '已為你保留名額，並正自動同步至診所 Google 日曆。'
-                    : '我們已為你保留該時段，期待你的光臨。';
+                syncNote.textContent = syncedToCloud
+                    ? '已即時同步至診所 Google 日曆並鎖定名額，期待你的光臨。'
+                    : '我們已為你保留該時段，建議複製以下 WhatsApp 訊息發送給診所確認。';
             }
 
             document.getElementById('success-modal').classList.remove('hidden');
@@ -874,7 +1075,7 @@
             copyTextToClipboard(msg, '已複製 WhatsApp 確認訊息！');
         }
 
-        // 8. Google 日曆整合（一鍵加入 + 多帳戶自動同步）
+        // 9. Google 日曆設定、連線測試與 Apps Script 程式碼
         function buildGoogleCalendarUrl(booking) {
             const [y, m, d] = booking.date.split('-').map(Number);
             const [sh, sm] = booking.time.split(':').map(Number);
@@ -916,49 +1117,61 @@
             return `https://calendar.google.com/calendar/render?${params.toString()}`;
         }
 
-        async function syncBookingToGoogleCalendar(booking) {
-            const config = getGcalConfig();
-            const webhooks = [config.webhook1, config.webhook2].filter(Boolean);
-            if (webhooks.length === 0) return;
-
-            const payload = {
-                ref: booking.ref,
-                name: booking.name,
-                phone: booking.phone,
-                date: booking.date,
-                time: booking.time,
-                durationMinutes: CLINIC_INFO.durationMinutes,
-                price: booking.price,
-                notes: booking.notes || '',
-                address: CLINIC_INFO.address,
-                clinicName: CLINIC_INFO.name,
-                extraEmails: config.extraEmails || ''
-            };
-
-            for (const url of webhooks) {
-                try {
-                    await fetch(url, {
-                        method: 'POST',
-                        mode: 'no-cors',
-                        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-                        body: JSON.stringify(payload)
-                    });
-                } catch (err) {
-                    console.error('Google 日曆同步失敗:', err);
-                }
-            }
-        }
-
         function openGcalModal() {
             const config = getGcalConfig();
             document.getElementById('gcal-webhook-1').value = config.webhook1;
             document.getElementById('gcal-extra-emails').value = config.extraEmails;
             document.getElementById('gcal-webhook-2').value = config.webhook2;
+            const testRes = document.getElementById('gcal-test-result');
+            if (testRes) testRes.classList.add('hidden');
             document.getElementById('gcal-modal').classList.remove('hidden');
         }
 
         function closeGcalModal() {
             document.getElementById('gcal-modal').classList.add('hidden');
+        }
+
+        async function testGcalConnection() {
+            const url = document.getElementById('gcal-webhook-1').value.trim();
+            const resultEl = document.getElementById('gcal-test-result');
+            const btn = document.getElementById('btn-test-gcal');
+
+            if (!url) {
+                resultEl.className = 'text-xs mt-1.5 text-rose-600 font-medium';
+                resultEl.textContent = '請先貼上 Apps Script 網址（結尾為 /exec）。';
+                return;
+            }
+            if (!url.includes('/exec')) {
+                resultEl.className = 'text-xs mt-1.5 text-amber-600 font-medium';
+                resultEl.textContent = '⚠️ 網址結尾不是 /exec，請確認複製的是「部署後的網頁應用程式網址」，而不是編輯器網址。';
+                return;
+            }
+
+            btn.disabled = true;
+            btn.textContent = '測試中...';
+            resultEl.className = 'text-xs mt-1.5 text-slate-500';
+            resultEl.textContent = '正在連線至你的 Google 日曆...';
+
+            try {
+                const sep = url.includes('?') ? '&' : '?';
+                const res = await fetch(`${url}${sep}action=ping&_t=${Date.now()}`, {
+                    method: 'GET',
+                    redirect: 'follow'
+                });
+                const data = await res.json();
+                if (data && data.status === 'ok') {
+                    resultEl.className = 'text-xs mt-1.5 text-emerald-600 font-semibold';
+                    resultEl.textContent = `✅ 連線成功！已連接日曆：${data.calendarName || '預設 Google 日曆'}（雙向同步正常運作）`;
+                } else {
+                    throw new Error('回傳格式不符');
+                }
+            } catch (err) {
+                resultEl.className = 'text-xs mt-1.5 text-rose-600 font-medium';
+                resultEl.textContent = '❌ 連線失敗！請確認：(1) 已貼上最新版程式碼並按「新增部署作業」；(2)「誰可以存取」已選擇「所有人」。';
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '測試連線';
+            }
         }
 
         function saveGcalConfig() {
@@ -971,7 +1184,12 @@
                 localStorage.setItem(STORAGE_KEY_GCAL, JSON.stringify(config));
                 updateGcalStatusIndicator();
                 closeGcalModal();
-                showToast('已儲存 Google 日曆同步設定！');
+                showToast('已儲存設定！記得按「匯出網頁」重新下載並上傳至 GitHub');
+                if (config.webhook1) {
+                    document.getElementById('btn-refresh-slots')?.classList.remove('hidden');
+                    refreshCloudSlots(false);
+                    refreshAdminSchedule(false);
+                }
             } catch (e) {
                 showToast('儲存失敗，請檢查瀏覽器權限', 'error');
             }
@@ -979,28 +1197,135 @@
 
         function updateGcalStatusIndicator() {
             const dot = document.getElementById('gcal-status-dot');
-            if (!dot) return;
+            const banner = document.getElementById('admin-sync-banner');
+            const bannerText = document.getElementById('admin-sync-banner-text');
             const config = getGcalConfig();
-            const isActive = Boolean(config.webhook1 || config.webhook2);
-            dot.className = `w-2 h-2 rounded-full ${isActive ? 'bg-emerald-500' : 'bg-slate-300'}`;
+            const isActive = Boolean(config.webhook1);
+
+            if (dot) {
+                dot.className = `w-2 h-2 rounded-full ${isActive ? 'bg-emerald-500' : 'bg-rose-400'}`;
+            }
+            if (banner && bannerText) {
+                if (!isActive) {
+                    banner.className = 'rounded-2xl p-4 text-xs sm:text-sm border bg-amber-50 border-amber-200 text-amber-800 flex items-center justify-between gap-3';
+                    bannerText.textContent = '⚠️ 尚未設定 Google 日曆雙向同步網址：目前客人預約不會更新到你的日曆，也無法跨裝置同步給其他客人。';
+                } else {
+                    banner.classList.add('hidden');
+                }
+            }
         }
 
         function copyAppsScriptCode() {
-            const scriptCode = `function doPost(e) {
+            const scriptCode = `// 痛症調理中心 - Google 日曆雙向同步腳本 (v2)
+var TIMEZONE = 'Asia/Hong_Kong';
+var ALL_SLOTS = ['10:00', '11:00', '12:00', '14:00', '15:00', '16:00', '17:00'];
+
+function jsonResponse(obj) {
+  return ContentService
+    .createTextOutput(JSON.stringify(obj))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+// 處理 GET 請求：測試連線 / 讀取未來 14 天已滿時段 / 後台讀取預約列表
+function doGet(e) {
+  try {
+    var action = (e && e.parameter && e.parameter.action) ? e.parameter.action : 'slots';
+    var cal = CalendarApp.getDefaultCalendar();
+
+    if (action === 'ping') {
+      return jsonResponse({ status: 'ok', calendarName: cal.getName() });
+    }
+
+    var now = new Date();
+    var todayStr = Utilities.formatDate(now, TIMEZONE, 'yyyy-MM-dd');
+    var rangeStart = new Date(todayStr + 'T00:00:00+08:00');
+    var rangeEnd = new Date(rangeStart.getTime() + 15 * 24 * 60 * 60 * 1000);
+    var events = cal.getEvents(rangeStart, rangeEnd);
+
+    if (action === 'admin') {
+      var list = [];
+      for (var i = 0; i < events.length; i++) {
+        var ev = events[i];
+        if (ev.isAllDayEvent()) continue;
+        var st = ev.getStartTime();
+        var et = ev.getEndTime();
+        var desc = ev.getDescription() || '';
+        var refMatch = desc.match(/預約編號：([^\\n]+)/);
+        var nameMatch = desc.match(/客人姓名：([^\\n]+)/);
+        var phoneMatch = desc.match(/聯絡電話：([^\\n]+)/);
+        var notesMatch = desc.match(/備註：([\\s\\S]+)/);
+
+        list.push({
+          id: ev.getId(),
+          eventId: ev.getId(),
+          ref: refMatch ? refMatch[1].trim() : 'GCAL',
+          date: Utilities.formatDate(st, TIMEZONE, 'yyyy-MM-dd'),
+          time: Utilities.formatDate(st, TIMEZONE, 'HH:mm'),
+          endTime: Utilities.formatDate(et, TIMEZONE, 'HH:mm'),
+          name: nameMatch ? nameMatch[1].trim() : ev.getTitle(),
+          phone: phoneMatch ? phoneMatch[1].trim() : '',
+          notes: notesMatch ? notesMatch[1].trim() : '',
+          price: 800,
+          fromCloud: true
+        });
+      }
+      return jsonResponse({ status: 'ok', bookings: list });
+    }
+
+    // 預設 action === 'slots'：只回傳已佔用的日期與時段（保護客人私隱）
+    var bookedSlots = [];
+    for (var d = 0; d < 14; d++) {
+      var dayDate = new Date(rangeStart.getTime() + d * 24 * 60 * 60 * 1000);
+      var dateStr = Utilities.formatDate(dayDate, TIMEZONE, 'yyyy-MM-dd');
+
+      for (var s = 0; s < ALL_SLOTS.length; s++) {
+        var slotTime = ALL_SLOTS[s];
+        var slotStart = new Date(dateStr + 'T' + slotTime + ':00+08:00');
+        var slotEnd = new Date(slotStart.getTime() + 60 * 60000);
+
+        for (var j = 0; j < events.length; j++) {
+          var cev = events[j];
+          if (cev.isAllDayEvent()) continue;
+          if (cev.getStartTime().getTime() < slotEnd.getTime() && cev.getEndTime().getTime() > slotStart.getTime()) {
+            bookedSlots.push({ date: dateStr, time: slotTime });
+            break;
+          }
+        }
+      }
+    }
+
+    return jsonResponse({ status: 'ok', bookedSlots: bookedSlots });
+  } catch (err) {
+    return jsonResponse({ status: 'error', message: err.toString() });
+  }
+}
+
+// 處理 POST 請求：建立新預約（含防重複預約檢查）或取消預約
+function doPost(e) {
   try {
     var data = JSON.parse(e.postData.contents);
     var cal = CalendarApp.getDefaultCalendar();
-    var parts = data.date.split('-');
-    var timeParts = data.time.split(':');
-    var start = new Date(
-      parseInt(parts[0], 10),
-      parseInt(parts[1], 10) - 1,
-      parseInt(parts[2], 10),
-      parseInt(timeParts[0], 10),
-      parseInt(timeParts[1], 10)
-    );
+
+    if (data.action === 'cancel' && data.eventId) {
+      var target = cal.getEventById(data.eventId);
+      if (target) {
+        target.deleteEvent();
+      }
+      return jsonResponse({ status: 'ok' });
+    }
+
     var duration = data.durationMinutes || 60;
+    var start = new Date(data.date + 'T' + data.time + ':00+08:00');
     var end = new Date(start.getTime() + duration * 60000);
+
+    // 檢查該時段是否已有預約，避免重複預約
+    var existing = cal.getEvents(start, end);
+    for (var i = 0; i < existing.length; i++) {
+      if (!existing[i].isAllDayEvent()) {
+        return jsonResponse({ status: 'conflict', message: '該時段已被預約' });
+      }
+    }
+
     var title = (data.clinicName || '痛症調理中心') + '預約 - ' + data.name;
     var desc = [
       '預約編號：' + (data.ref || ''),
@@ -1019,16 +1344,16 @@
       options.sendInvites = true;
     }
 
-    cal.createEvent(title, start, end, options);
-    return ContentService.createTextOutput(JSON.stringify({ status: 'ok' })).setMimeType(ContentService.MimeType.JSON);
+    var created = cal.createEvent(title, start, end, options);
+    return jsonResponse({ status: 'ok', eventId: created.getId() });
   } catch (err) {
-    return ContentService.createTextOutput(JSON.stringify({ status: 'error', message: err.toString() })).setMimeType(ContentService.MimeType.JSON);
+    return jsonResponse({ status: 'error', message: err.toString() });
   }
 }`;
-            copyTextToClipboard(scriptCode, '已複製 Google Apps Script 程式碼！');
+            copyTextToClipboard(scriptCode, '已複製最新版「雙向同步」Apps Script 程式碼！');
         }
 
-        // 9. 時間表管理後台
+        // 10. 時間表管理後台
         function switchTab(tabName) {
             const bookingView = document.getElementById('view-booking');
             const scheduleView = document.getElementById('view-schedule');
@@ -1040,7 +1365,13 @@
                 scheduleView.classList.remove('hidden');
                 tabSchedule.className = 'px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all bg-white text-brand-700 shadow-sm';
                 tabBooking.className = 'px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all text-slate-600 hover:text-slate-900';
-                renderScheduleList();
+                updateGcalStatusIndicator();
+                const config = getGcalConfig();
+                if (config.webhook1) {
+                    refreshAdminSchedule(false);
+                } else {
+                    renderScheduleList();
+                }
             } else {
                 scheduleView.classList.add('hidden');
                 bookingView.classList.remove('hidden');
@@ -1055,9 +1386,15 @@
             renderScheduleList();
         }
 
+        function getActiveBookingsForAdmin() {
+            const config = getGcalConfig();
+            return (config.webhook1 && isCloudSynced) ? cloudAdminBookings : localBookings;
+        }
+
         function getFilteredBookings() {
             const filterDate = document.getElementById('schedule-date-filter')?.value || '';
-            const list = filterDate ? bookings.filter(b => b.date === filterDate) : [...bookings];
+            const source = getActiveBookingsForAdmin();
+            const list = filterDate ? source.filter(b => b.date === filterDate) : [...source];
             return list.sort((a, b) => `${a.date} ${a.time}`.localeCompare(`${b.date} ${b.time}`));
         }
 
@@ -1085,23 +1422,22 @@
                 const row = document.createElement('div');
                 row.className = 'p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-slate-50/80 transition-colors';
                 const gcalHref = buildGoogleCalendarUrl(b);
+                const safeId = escapeHtml(b.id || b.eventId || '');
 
                 row.innerHTML = `
                     <div class="space-y-1">
                         <div class="flex flex-wrap items-center gap-2">
-                            <span class="px-2.5 py-0.5 rounded-lg bg-brand-50 text-brand-700 font-semibold text-xs border border-brand-100">${b.date} ${b.time} - ${b.endTime || getEndTimeStr(b.time)}</span>
-                            <span class="font-mono text-xs text-slate-400">#${b.ref}</span>
+                            <span class="px-2.5 py-0.5 rounded-lg bg-brand-50 text-brand-700 font-semibold text-xs border border-brand-100">${escapeHtml(b.date)} ${escapeHtml(b.time)} - ${escapeHtml(b.endTime || getEndTimeStr(b.time))}</span>
+                            <span class="font-mono text-xs text-slate-400">#${escapeHtml(b.ref || 'GCAL')}</span>
                             <span class="text-xs font-semibold text-slate-600">HK$${b.price || CLINIC_INFO.price}</span>
+                            ${b.fromCloud ? '<span class="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-[10px] font-semibold border border-emerald-200">雲端日曆</span>' : ''}
                         </div>
                         <div class="text-sm font-bold text-slate-900">${escapeHtml(b.name)} <span class="font-normal text-slate-500 ml-1">${escapeHtml(b.phone)}</span></div>
                         ${b.notes ? `<div class="text-xs text-slate-500">備註：${escapeHtml(b.notes)}</div>` : ''}
                     </div>
                     <div class="flex items-center gap-2 shrink-0">
-                        <a href="${gcalHref}" target="_blank" rel="noopener noreferrer"
-                            class="px-3 py-2 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-semibold transition-all border border-blue-200">
-                            加入 Google 日曆
-                        </a>
-                        <button onclick="openConfirmCancelModal('${b.id}')"
+                        ${!b.fromCloud ? `<a href="${gcalHref}" target="_blank" rel="noopener noreferrer" class="px-3 py-2 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-semibold transition-all border border-blue-200">加入 Google 日曆</a>` : ''}
+                        <button onclick="openConfirmCancelModal('${safeId}')"
                             class="px-3 py-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-600 text-xs font-semibold transition-all border border-rose-200">
                             取消預約
                         </button>
@@ -1112,26 +1448,56 @@
         }
 
         function openConfirmCancelModal(bookingId) {
-            const target = bookings.find(b => b.id === bookingId);
+            const source = getActiveBookingsForAdmin();
+            const target = source.find(b => (b.id === bookingId || b.eventId === bookingId));
             if (!target) return;
-            pendingCancelId = bookingId;
+            pendingCancelTarget = target;
             document.getElementById('confirm-cancel-text').textContent = `確定要取消「${target.name}」於 ${target.date} ${target.time} 的預約嗎？取消後該時段會即時釋放。`;
             document.getElementById('confirm-cancel-modal').classList.remove('hidden');
         }
 
         function closeConfirmCancelModal() {
-            pendingCancelId = null;
+            pendingCancelTarget = null;
             document.getElementById('confirm-cancel-modal').classList.add('hidden');
         }
 
-        function executeCancelBooking() {
-            if (!pendingCancelId) return;
-            bookings = bookings.filter(b => b.id !== pendingCancelId);
-            saveBookings();
-            closeConfirmCancelModal();
-            renderTimeSlots();
-            renderScheduleList();
-            showToast('已取消該預約並釋放時段');
+        async function executeCancelBooking() {
+            if (!pendingCancelTarget) return;
+            const target = pendingCancelTarget;
+            const btn = document.getElementById('btn-confirm-cancel');
+            if (btn) {
+                btn.disabled = true;
+                btn.textContent = '取消中...';
+            }
+
+            try {
+                const config = getGcalConfig();
+                if (config.webhook1 && target.eventId) {
+                    await fetch(config.webhook1, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                        redirect: 'follow',
+                        body: JSON.stringify({ action: 'cancel', eventId: target.eventId })
+                    });
+                }
+
+                localBookings = localBookings.filter(b => b.id !== target.id);
+                saveLocalBookings();
+                cloudAdminBookings = cloudAdminBookings.filter(b => b.eventId !== target.eventId && b.id !== target.id);
+                cloudBookedSet.delete(`${target.date}|${target.time}`);
+
+                closeConfirmCancelModal();
+                renderTimeSlots();
+                renderScheduleList();
+                showToast('已取消該預約並即時釋放時段');
+            } catch (err) {
+                showToast('取消雲端日曆活動失敗，請稍後再試', 'error');
+            } finally {
+                if (btn) {
+                    btn.disabled = false;
+                    btn.textContent = '確定取消';
+                }
+            }
         }
 
         function copyScheduleText() {
@@ -1142,14 +1508,25 @@
             }
             const lines = [`【${CLINIC_INFO.name} 預約排程】`, ''];
             filtered.forEach((b, idx) => {
-                lines.push(`${idx + 1}. ${b.date} ${b.time}-${b.endTime || getEndTimeStr(b.time)}｜${b.name} (${b.phone})｜HK$${b.price || CLINIC_INFO.price}${b.notes ? '｜備註：' + b.notes : ''}`);
+                lines.push(`${idx + 1}. ${b.date} ${b.time}-${b.endTime || getEndTimeStr(b.time)}｜${b.name} ${b.phone ? '(' + b.phone + ')' : ''}｜HK$${b.price || CLINIC_INFO.price}${b.notes ? '｜備註：' + b.notes : ''}`);
             });
             copyTextToClipboard(lines.join('\n'), '已複製排程文字！');
         }
 
-        // 10. 匯出獨立網頁與 GitHub Pages 工具
+        // 11. 匯出獨立網頁與 GitHub Pages 工具
         function openExportModal() {
             updateGithubUrlPreview();
+            const config = getGcalConfig();
+            const checkBox = document.getElementById('export-sync-check');
+            if (checkBox) {
+                if (config.webhook1) {
+                    checkBox.className = 'p-3.5 rounded-xl border bg-emerald-50 border-emerald-200 text-emerald-800 text-xs leading-relaxed';
+                    checkBox.innerHTML = `<div class="font-bold">✅ 已內建 Google 日曆雙向同步網址</div><div class="mt-0.5 truncate opacity-90">${escapeHtml(config.webhook1)}</div><div class="mt-1">下載並上傳此 index.html 後，所有客人預約都會即時寫入日曆並自動更新網頁！</div>`;
+                } else {
+                    checkBox.className = 'p-3.5 rounded-xl border bg-amber-50 border-amber-200 text-amber-800 text-xs leading-relaxed';
+                    checkBox.innerHTML = `<div class="font-bold">⚠️ 尚未設定 Google 日曆同步網址！</div><div class="mt-0.5">如果現在直接下載上傳，客人預約將只會儲存在客人自己的手機，<strong>不會更新到你的日曆或其他人的網頁</strong>。請先關閉此視窗，點擊「Google 日曆雙向同步」完成設定後再匯出。</div>`;
+                }
+            }
             document.getElementById('export-modal').classList.remove('hidden');
         }
 
@@ -1180,7 +1557,7 @@
 
                 const clone = document.documentElement.cloneNode(true);
 
-                // 寫入預設設定至匯出的檔案中
+                // 將同步設定直接寫入匯出檔案的 PRESET_CONFIG
                 const presetScript = clone.querySelector('#preset-config');
                 if (presetScript) {
                     const presetObj = {
@@ -1225,14 +1602,14 @@
                 document.body.removeChild(a);
                 URL.revokeObjectURL(url);
 
-                showToast('已開始下載 index.html！');
+                showToast('已下載 index.html（已內建最新同步設定）！');
             } catch (err) {
                 console.error('匯出失敗:', err);
                 showToast('匯出失敗，請重試', 'error');
             }
         }
 
-        // 11. 工具函式（安全跳脫、複製文字、Toast、秘密解鎖後台）
+        // 12. 工具函式（安全跳脫、複製文字、Toast、秘密解鎖後台）
         function escapeHtml(str) {
             return String(str || '')
                 .replace(/&/g, '&amp;')
@@ -1272,7 +1649,7 @@
             setTimeout(() => {
                 toast.style.opacity = '0';
                 setTimeout(() => toast.remove(), 300);
-            }, 2600);
+            }, 2800);
         }
 
         let secretTapCount = 0;
