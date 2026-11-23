@@ -1,0 +1,1318 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>痛症調理中心｜網上預約時間表</title>
+    <!-- 載入 Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 載入 Google Fonts (Inter 與 Noto Sans TC 繁體中文) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+TC:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Tailwind 自訂設定 -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['"Noto Sans TC"', 'Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        brand: {
+                            50: '#f0fdfa',
+                            100: '#ccfbf1',
+                            200: '#99f6e4',
+                            500: '#14b8a6',
+                            600: '#0d9488',
+                            700: '#0f766e',
+                            900: '#134e4a',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* 隱藏水平滾動條但保留滑動功能（用於日期選擇列） */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+        /* 平滑淡入動畫 */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(6px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-in {
+            animation: fadeIn 0.25s ease-out forwards;
+        }
+    </style>
+    <!-- 匯出獨立網頁時自動寫入的預設設定 -->
+    <script id="preset-config">
+        window.PRESET_CONFIG = {
+            webhook1: "",
+            webhook2: "",
+            extraEmails: "",
+            hideAdminTab: false
+        };
+    </script>
+</head>
+<body class="bg-slate-50 text-slate-800 antialiased min-h-screen flex flex-col">
+
+    <!-- 頂部導覽列 -->
+    <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm">
+        <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-3">
+            <!-- 診所標誌與名稱 -->
+            <div class="flex items-center gap-3 min-w-0">
+                <div class="w-10 h-10 rounded-xl bg-brand-600 text-white flex items-center justify-center shrink-0 shadow-sm">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                    </svg>
+                </div>
+                <div class="truncate">
+                    <h1 class="text-base sm:text-lg font-bold text-slate-900 truncate">痛症調理中心</h1>
+                </div>
+            </div>
+
+            <!-- 視圖切換按鈕（客人預約 vs 診所排程總覽） -->
+            <nav id="main-nav-tabs" class="flex items-center bg-slate-100 p-1 rounded-xl shrink-0">
+                <button id="tab-booking" onclick="switchTab('booking')" class="px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all bg-white text-brand-700 shadow-sm">
+                    客人預約
+                </button>
+                <button id="tab-schedule" onclick="switchTab('schedule')" class="px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all text-slate-600 hover:text-slate-900 flex items-center gap-1.5">
+                    <span>時間表管理</span>
+                    <span id="booking-count-badge" class="bg-brand-100 text-brand-700 text-xs font-bold px-1.5 py-0.5 rounded-full">0</span>
+                </button>
+            </nav>
+        </div>
+    </header>
+
+    <!-- 主要內容區域 -->
+    <main class="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+
+        <!-- ==================== 視圖一：客人預約介面 ==================== -->
+        <div id="view-booking" class="animate-fade-in">
+            <!-- 頂部診所提示資訊 -->
+            <div class="bg-gradient-to-r from-brand-700 to-brand-600 rounded-2xl p-5 sm:p-6 text-white mb-6 shadow-md">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div>
+                        <span class="inline-block bg-white/20 backdrop-blur-sm text-xs font-medium px-2.5 py-1 rounded-full mb-2">固定收費 HK$800・每節 60 分鐘</span>
+                        <h2 class="text-xl sm:text-2xl font-bold">預約你的專屬痛症治療時段</h2>
+                        <p class="text-brand-50 text-sm mt-1">所有療程劃一固定收費 HK$800，請選擇合適日期與時段立即預約。</p>
+                    </div>
+                    <div class="text-xs sm:text-sm bg-white/10 rounded-xl p-3.5 backdrop-blur-sm shrink-0 space-y-1">
+                        <div class="flex items-center gap-2">
+                            <svg class="w-4 h-4 text-brand-200 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                            <span>營業時間：週一至週日 10:00 - 17:00</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <svg class="w-4 h-4 text-brand-200 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                            <span>地址：九龍新浦崗五芳街10號新寶中心15樓03室</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 雙欄響應式佈局：左側填寫步驟，右側即時預約摘要 -->
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+
+                <!-- 左側主要步驟區 (8欄) -->
+                <div class="lg:col-span-8 space-y-6">
+
+                    <!-- 步驟 1：選擇日期與時間表 -->
+                    <section class="bg-white rounded-2xl border border-slate-200 p-5 sm:p-6 shadow-sm">
+                        <div class="flex flex-wrap items-center justify-between gap-2 mb-4">
+                            <div class="flex items-center gap-2.5">
+                                <span class="w-7 h-7 rounded-full bg-brand-600 text-white text-sm font-bold flex items-center justify-center shrink-0">1</span>
+                                <h3 class="text-lg font-bold text-slate-900">選擇預約日期與時段</h3>
+                            </div>
+                            <!-- 圖例說明 -->
+                            <div class="flex items-center gap-3 text-xs text-slate-500">
+                                <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-white border border-slate-300"></span>可預約</span>
+                                <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-brand-600"></span>已選</span>
+                                <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-slate-200"></span>已滿</span>
+                            </div>
+                        </div>
+
+                        <!-- 日期橫向選擇列 -->
+                        <div class="mb-5">
+                            <div class="flex items-center justify-between mb-2">
+                                <span id="current-month-label" class="text-sm font-semibold text-slate-700"></span>
+                                <span class="text-xs text-slate-400">可向右滑動查看更多日期 →</span>
+                            </div>
+                            <div id="date-strip" class="flex gap-2.5 overflow-x-auto no-scrollbar pb-2">
+                                <!-- 由 JavaScript 動態渲染未來 14 天日期 -->
+                            </div>
+                        </div>
+
+                        <!-- 時段格狀時間表 -->
+                        <div id="time-slots-container" class="space-y-5">
+                            <!-- 由 JavaScript 動態渲染上午、下午時段 -->
+                        </div>
+                    </section>
+
+                    <!-- 步驟 2：填寫客人資料 -->
+                    <section class="bg-white rounded-2xl border border-slate-200 p-5 sm:p-6 shadow-sm">
+                        <div class="flex items-center gap-2.5 mb-4">
+                            <span class="w-7 h-7 rounded-full bg-brand-600 text-white text-sm font-bold flex items-center justify-center shrink-0">2</span>
+                            <h3 class="text-lg font-bold text-slate-900">填寫聯絡資料</h3>
+                        </div>
+
+                        <form id="booking-form" class="space-y-4" onsubmit="handleBookingSubmit(event)">
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div>
+                                    <label for="patient-name" class="block text-sm font-medium text-slate-700 mb-1.5">客人姓名 <span class="text-rose-500">*</span></label>
+                                    <input type="text" id="patient-name" required placeholder="例如：陳大文" class="w-full px-4 py-3 rounded-xl border border-slate-300 focus:border-brand-500 focus:ring-2 focus:ring-brand-200 outline-none transition text-sm">
+                                </div>
+                                <div>
+                                    <label for="patient-phone" class="block text-sm font-medium text-slate-700 mb-1.5">聯絡電話 / WhatsApp <span class="text-rose-500">*</span></label>
+                                    <input type="tel" id="patient-phone" required placeholder="例如：9123 4567" class="w-full px-4 py-3 rounded-xl border border-slate-300 focus:border-brand-500 focus:ring-2 focus:ring-brand-200 outline-none transition text-sm">
+                                </div>
+                            </div>
+
+                            <div>
+                                <label for="patient-notes" class="block text-sm font-medium text-slate-700 mb-1.5">備註（選填）</label>
+                                <textarea id="patient-notes" rows="2" placeholder="如有特別需要或過往病史可在此註明..." class="w-full px-4 py-3 rounded-xl border border-slate-300 focus:border-brand-500 focus:ring-2 focus:ring-brand-200 outline-none transition text-sm resize-none"></textarea>
+                            </div>
+
+                            <!-- 行動端專用的提交按鈕（桌面版於右側摘要卡片顯示） -->
+                            <div class="lg:hidden pt-2">
+                                <button type="submit" class="w-full bg-brand-600 hover:bg-brand-700 active:scale-[0.99] text-white font-bold py-3.5 px-6 rounded-xl shadow-md transition-all flex items-center justify-center gap-2">
+                                    <span>確認提交預約</span>
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                                </button>
+                            </div>
+                        </form>
+                    </section>
+
+                </div>
+
+                <!-- 右側預約摘要卡片 (4欄，桌面版黏性定位) -->
+                <aside class="lg:col-span-4 lg:sticky lg:top-24">
+                    <div class="bg-white rounded-2xl border border-slate-200 p-5 sm:p-6 shadow-sm">
+                        <h3 class="text-base font-bold text-slate-900 pb-3 border-b border-slate-100 flex items-center justify-between">
+                            <span>預約摘要</span>
+                            <span class="text-xs font-bold text-brand-700 bg-brand-50 border border-brand-200 px-2.5 py-1 rounded-full">固定收費</span>
+                        </h3>
+
+                        <div class="py-4 space-y-3.5 text-sm">
+                            <div class="flex justify-between gap-2">
+                                <span class="text-slate-500 shrink-0">預約日期</span>
+                                <span id="summary-date" class="font-semibold text-slate-900 text-right">未選擇</span>
+                            </div>
+                            <div class="flex justify-between gap-2">
+                                <span class="text-slate-500 shrink-0">預約時段</span>
+                                <span id="summary-time" class="font-bold text-brand-600 text-right">請選擇時段</span>
+                            </div>
+                            <div class="flex justify-between gap-2">
+                                <span class="text-slate-500 shrink-0">療程時長</span>
+                                <span class="font-semibold text-slate-900 text-right">60 分鐘</span>
+                            </div>
+                        </div>
+
+                        <div class="pt-4 border-t border-slate-100 mb-5">
+                            <div class="flex items-baseline justify-between">
+                                <span class="text-sm font-bold text-slate-900">固定療程費用</span>
+                                <span id="summary-price" class="text-2xl font-bold text-brand-700">HK$800</span>
+                            </div>
+                        </div>
+
+                        <!-- 桌面端提交按鈕（觸發左側表單驗證與提交） -->
+                        <button type="button" onclick="triggerFormSubmit()" class="w-full bg-brand-600 hover:bg-brand-700 active:scale-[0.99] text-white font-bold py-3.5 px-6 rounded-xl shadow-md transition-all flex items-center justify-center gap-2">
+                            <span>確認提交預約</span>
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                        </button>
+
+                        <p class="text-xs text-slate-400 text-center mt-3 leading-relaxed">
+                            如需改期或取消，請於治療前最少 4 小時通知。
+                        </p>
+                    </div>
+                </aside>
+            </div>
+        </div>
+
+        <!-- ==================== 視圖二：時間表管理總覽 (診所後台) ==================== -->
+        <div id="view-schedule" class="hidden animate-fade-in space-y-6">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 sm:p-6 rounded-2xl border border-slate-200 shadow-sm">
+                <div>
+                    <h2 class="text-xl font-bold text-slate-900">診所預約時間表管理</h2>
+                    <p class="text-sm text-slate-500 mt-1">即時檢視所有客人的預約記錄，取消預約後系統會自動釋放該時段名額。</p>
+                </div>
+                <div class="flex flex-wrap items-center gap-2">
+                    <select id="admin-date-filter" onchange="renderAdminSchedule()" class="px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm font-medium bg-white focus:border-brand-500 outline-none">
+                        <option value="ALL">顯示所有日期</option>
+                    </select>
+                    <button onclick="copyDailySchedule()" class="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-semibold transition flex items-center gap-1.5">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"/></svg>
+                        <span>複製排程文字</span>
+                    </button>
+                    <button onclick="openGCalModal()" class="px-4 py-2.5 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 text-sm font-semibold transition flex items-center gap-1.5">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                        <span>Google 日曆自動同步</span>
+                        <span id="gcal-status-dot" class="w-2 h-2 rounded-full bg-slate-300"></span>
+                    </button>
+                    <button onclick="openExportModal()" class="px-4 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-700 text-white text-sm font-semibold transition flex items-center gap-1.5 shadow-sm">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+                        <span>匯出網頁 / 取得網址</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- 預約列表容器 -->
+            <div id="admin-bookings-list" class="space-y-3">
+                <!-- 由 JavaScript 動態渲染 -->
+            </div>
+        </div>
+
+    </main>
+
+    <!-- 頁尾 -->
+    <footer class="bg-white border-t border-slate-200 py-5 mt-12">
+        <div class="max-w-6xl mx-auto px-4 text-center text-xs text-slate-400">
+            © 2026 痛症調理中心・網上預約時間表系統（資料儲存於本機瀏覽器作即時示範）
+        </div>
+    </footer>
+
+    <!-- ==================== 預約成功確認彈窗 (Modal) ==================== -->
+    <div id="success-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
+        <div class="bg-white rounded-3xl max-w-md w-full p-6 sm:p-7 shadow-2xl animate-fade-in relative">
+            <div class="w-14 h-14 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto mb-4">
+                <svg class="w-8 h-8" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+                </svg>
+            </div>
+            <h3 class="text-xl font-bold text-center text-slate-900">預約成功！</h3>
+            <p class="text-sm text-slate-500 text-center mt-1">預約編號：<span id="modal-ref" class="font-mono font-bold text-slate-800"></span></p>
+
+            <div id="modal-details" class="bg-slate-50 rounded-2xl p-4 my-4 space-y-2 text-sm border border-slate-100">
+                <!-- 由 JavaScript 填入預約詳情 -->
+            </div>
+
+            <p id="modal-gcal-auto-note" class="hidden text-xs text-blue-700 bg-blue-50 border border-blue-200 rounded-xl px-3 py-2 mb-3 text-center font-medium">
+                ✓ 已自動同步至診所 Google 日曆
+            </p>
+
+            <div class="space-y-2.5">
+                <button onclick="openGoogleCalendarForLastBooking()" class="w-full py-3 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm transition flex items-center justify-center gap-2 shadow-sm">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                    <span>一鍵加入 Google 日曆</span>
+                </button>
+                <button onclick="copyBookingForWhatsApp()" class="w-full py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-sm transition flex items-center justify-center gap-2 shadow-sm">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+                    <span>複製預約詳情（發送至 WhatsApp）</span>
+                </button>
+                <button onclick="closeSuccessModal()" class="w-full py-3 px-4 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-sm transition">
+                    完成並返回時間表
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== 刪除確認彈窗 (取代瀏覽器 confirm) ==================== -->
+    <div id="cancel-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
+        <div class="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl animate-fade-in">
+            <h3 class="text-lg font-bold text-slate-900">確定要取消此預約？</h3>
+            <p class="text-sm text-slate-500 mt-2">取消後該客人的預約記錄將會移除，對應的日期及時段會立即重新開放給其他客人預約。</p>
+            <div class="flex gap-3 mt-6">
+                <button onclick="closeCancelModal()" class="flex-1 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-sm transition">返回</button>
+                <button id="confirm-cancel-btn" class="flex-1 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-semibold text-sm transition">確定取消</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== Google 日曆自動同步設定彈窗 ==================== -->
+    <div id="gcal-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
+        <div class="bg-white rounded-3xl max-w-lg w-full max-h-[90vh] overflow-y-auto p-6 shadow-2xl animate-fade-in">
+            <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+                <h3 class="text-lg font-bold text-slate-900 flex items-center gap-2">
+                    <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                    <span>Google 日曆自動同步設定</span>
+                </h3>
+                <button onclick="closeGCalModal()" class="text-slate-400 hover:text-slate-600 p-1 rounded-lg">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+
+            <div class="py-4 space-y-4 text-sm">
+                <p class="text-slate-600 leading-relaxed">
+                    只需 2 分鐘免費設定一次 <strong>Google Apps Script</strong>，之後每當客人提交預約，系統就會<strong>自動</strong>將預約寫入你的 Google 日曆（包含客人姓名、電話與地址資料）。
+                </p>
+
+                <!-- 步驟說明 -->
+                <div class="bg-slate-50 rounded-2xl p-4 border border-slate-200 space-y-2 text-xs text-slate-700">
+                    <p class="font-bold text-slate-900 text-sm">設定步驟：</p>
+                    <ol class="list-decimal list-inside space-y-1.5 leading-relaxed">
+                        <li>前往 <a href="https://script.google.com" target="_blank" rel="noopener" class="text-blue-600 underline font-semibold">script.google.com</a>，按左上角「新專案」。</li>
+                        <li>點擊下方按鈕複製程式碼，取代編輯器內原有的內容並儲存。</li>
+                        <li>按右上角「<strong>部署</strong>」→「<strong>新增部署作業</strong>」→ 類型選「<strong>網頁應用程式</strong>」。</li>
+                        <li>「誰可以存取」選擇「<strong>所有人</strong>」，按部署並完成授權，複製產生的「<strong>網頁應用程式網址</strong>」貼到下方。</li>
+                    </ol>
+                    <button type="button" onclick="copyAppsScriptCode()" class="mt-2 w-full py-2.5 px-3 rounded-xl bg-white hover:bg-slate-100 border border-slate-300 text-slate-800 font-semibold text-xs transition flex items-center justify-center gap-1.5">
+                        <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+                        <span>一鍵複製 Google Apps Script 程式碼</span>
+                    </button>
+                </div>
+
+                <!-- 貼上 Webhook URL -->
+                <div>
+                    <label for="gcal-webhook-input" class="block text-sm font-semibold text-slate-800 mb-1.5">主要 Google 帳戶－Apps Script 網址</label>
+                    <input type="url" id="gcal-webhook-input" placeholder="https://script.google.com/macros/s/.../exec" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none text-xs font-mono">
+                </div>
+
+                <!-- 同步至另一個 Google 帳戶設定 -->
+                <div class="bg-blue-50/70 rounded-2xl p-4 border border-blue-100 space-y-3">
+                    <p class="font-bold text-slate-900 text-sm flex items-center gap-1.5">
+                        <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"/></svg>
+                        <span>加入另一個 Google 帳戶（二選一或同時使用）</span>
+                    </p>
+
+                    <div>
+                        <label for="gcal-extra-email-input" class="block text-xs font-semibold text-slate-700 mb-1">方法 A（最簡單）：另一個 Google 帳戶 Email</label>
+                        <input type="text" id="gcal-extra-email-input" placeholder="例如：partner@gmail.com（多個帳戶可用逗號分隔）" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none text-xs">
+                        <p class="text-[11px] text-slate-500 mt-1">自動同步及「一鍵加入 Google 日曆」時，皆會自動將該帳戶加入活動嘉賓，同步顯示於對方的日曆。</p>
+                    </div>
+
+                    <div>
+                        <label for="gcal-webhook-2-input" class="block text-xs font-semibold text-slate-700 mb-1">方法 B（獨立寫入）：第二個 Google 帳戶的 Apps Script 網址（選填）</label>
+                        <input type="url" id="gcal-webhook-2-input" placeholder="https://script.google.com/macros/s/.../exec" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none text-xs font-mono">
+                        <p class="text-[11px] text-slate-500 mt-1">用另一個 Google 帳戶重複上述部署步驟並貼上網址，即可直接寫入對方日曆且不發送邀請電郵。</p>
+                    </div>
+                </div>
+
+                <p id="gcal-status-text" class="text-xs text-slate-500"></p>
+            </div>
+
+            <div class="flex flex-wrap gap-2.5 pt-2 border-t border-slate-100">
+                <button type="button" onclick="saveGCalWebhook()" class="flex-1 py-2.5 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm transition">
+                    儲存同步設定
+                </button>
+                <button type="button" onclick="clearGCalWebhook()" class="py-2.5 px-4 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-sm transition">
+                    全部重設
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== 匯出網頁與取得網址彈窗 ==================== -->
+    <div id="export-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
+        <div class="bg-white rounded-3xl max-w-lg w-full max-h-[90vh] overflow-y-auto p-6 shadow-2xl animate-fade-in">
+            <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+                <h3 class="text-lg font-bold text-slate-900 flex items-center gap-2">
+                    <svg class="w-5 h-5 text-brand-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/></svg>
+                    <span>匯出網頁並產生預約網址</span>
+                </h3>
+                <button onclick="closeExportModal()" class="text-slate-400 hover:text-slate-600 p-1 rounded-lg">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+
+            <div class="py-4 space-y-4 text-sm">
+                <!-- 若已上載至正式網址，可直接複製連結 -->
+                <div id="live-url-box" class="hidden bg-emerald-50 border border-emerald-200 rounded-2xl p-4 space-y-2">
+                    <p class="font-bold text-emerald-900 text-xs">目前已發佈，可直接複製專屬網址給客人：</p>
+                    <div class="flex gap-2">
+                        <input type="text" id="live-url-input" readonly class="flex-1 px-3 py-2 rounded-xl border border-emerald-200 bg-white text-xs font-mono text-slate-700 outline-none">
+                        <button type="button" onclick="copyLiveUrl()" class="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold shrink-0 transition">複製網址</button>
+                    </div>
+                </div>
+
+                <p class="text-slate-600 leading-relaxed">
+                    匯出獨立網頁檔（<code class="bg-slate-100 px-1.5 py-0.5 rounded text-xs font-mono">index.html</code>）後，系統會自動把你已設定的 <strong>Google 日曆自動同步設定</strong> 寫入檔案中，讓客人在自己手機預約時也能自動寫入你的日曆。
+                </p>
+
+                <!-- 匯出選項 -->
+                <label class="flex items-start gap-2.5 bg-slate-50 border border-slate-200 rounded-2xl p-3.5 cursor-pointer">
+                    <input type="checkbox" id="export-hide-admin" checked class="mt-0.5 w-4 h-4 accent-brand-600 rounded">
+                    <span class="text-xs text-slate-700 leading-relaxed">
+                        <strong class="text-slate-900 block">客人版隱藏「時間表管理」按鈕（建議勾選）</strong>
+                        避免客人看到後台排程；你自己隨時可在網址尾端加上 <code class="bg-white border border-slate-200 px-1 rounded font-mono">?admin=1</code> 進入管理後台。
+                    </span>
+                </label>
+
+                <!-- 步驟教學 -->
+                <div class="bg-brand-50/70 rounded-2xl p-4 border border-brand-100 space-y-2 text-xs text-slate-700">
+                    <p class="font-bold text-slate-900 text-sm">免費取得專屬 HTTPS 網址（30 秒完成）：</p>
+                    <ol class="list-decimal list-inside space-y-1.5 leading-relaxed">
+                        <li>點擊下方「<strong>下載獨立網頁檔 (index.html)</strong>」，把檔案存到電腦或新建資料夾內。</li>
+                        <li>前往免費寄存平台 <a href="https://app.netlify.com/drop" target="_blank" rel="noopener" class="text-brand-700 underline font-bold">Netlify Drop</a> 或 <a href="https://tiiny.host" target="_blank" rel="noopener" class="text-brand-700 underline font-bold">Tiiny.host</a>。</li>
+                        <li>把整個資料夾（或 <code class="bg-white px-1 rounded font-mono">index.html</code>）直接拖曳上傳，即可立即獲得可發送給客人的專屬網址！</li>
+                    </ol>
+                </div>
+            </div>
+
+            <div class="flex flex-col sm:flex-row gap-2.5 pt-2 border-t border-slate-100">
+                <button type="button" onclick="downloadStandaloneHtml()" class="flex-1 py-3 px-4 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-semibold text-sm transition flex items-center justify-center gap-2 shadow-sm">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                    <span>下載獨立網頁檔 (index.html)</span>
+                </button>
+                <button type="button" onclick="copyStandaloneHtmlCode()" class="py-3 px-4 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-sm transition">
+                    複製完整程式碼
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== 輕量提示訊息 (Toast Notification) ==================== -->
+    <div id="toast" class="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 hidden items-center gap-2 bg-slate-900 text-white text-sm font-medium px-5 py-3 rounded-full shadow-lg">
+        <span id="toast-message"></span>
+    </div>
+
+    <!-- ==================== 應用程式邏輯 ==================== -->
+    <script>
+        // ==========================================
+        // 1. 基礎資料設定（固定收費 HK$800，每節 60 分鐘）
+        // ==========================================
+        const FIXED_PRICE = 800;
+        const SESSION_DURATION_MIN = 60;
+        const CLINIC_NAME = '痛症調理中心';
+        const CLINIC_ADDRESS = '九龍新浦崗五芳街10號新寶中心15樓03室';
+
+        // 每日開放時段（週一至週日 10:00 - 17:00，每節 60 分鐘）
+        const TIME_GROUPS = [
+            { label: '上午時段', slots: ['10:00', '11:00', '12:00'] },
+            { label: '下午時段', slots: ['14:00', '15:00', '16:00', '17:00'] }
+        ];
+
+        const STORAGE_KEY = 'pain_clinic_bookings_v4';
+        const GCAL_WEBHOOK_KEY = 'pain_clinic_gcal_webhook_v1';
+        const GCAL_WEBHOOK_2_KEY = 'pain_clinic_gcal_webhook2_v1';
+        const GCAL_EXTRA_EMAIL_KEY = 'pain_clinic_gcal_extra_email_v1';
+        const WEEKDAYS_ZH = ['日', '一', '二', '三', '四', '五', '六'];
+
+        // ==========================================
+        // 2. 應用程式狀態管理
+        // ==========================================
+        let availableDates = [];
+        let bookings = [];
+        let state = {
+            dateStr: '',
+            timeSlot: ''
+        };
+        let lastCreatedBooking = null;
+        let pendingCancelId = null;
+
+        // ==========================================
+        // 3. 初始化與資料載入
+        // ==========================================
+        function initApp() {
+            generateAvailableDates();
+            loadBookings();
+
+            // 若匯出為客人版且網址沒有 ?admin=1，隱藏頂部「時間表管理」切換列
+            const urlParams = new URLSearchParams(window.location.search);
+            const isAdminMode = urlParams.get('admin') === '1';
+            if (window.PRESET_CONFIG && window.PRESET_CONFIG.hideAdminTab && !isAdminMode) {
+                const nav = document.getElementById('main-nav-tabs');
+                if (nav) nav.classList.add('hidden');
+            }
+
+            // 預設選擇第一個營業日
+            const firstOpenDate = availableDates.find(d => !d.isClosed);
+            state.dateStr = firstOpenDate ? firstOpenDate.dateStr : '';
+
+            renderDateStrip();
+            renderTimeSlots();
+            updateSummary();
+            updateBookingBadge();
+            populateAdminDateFilter();
+            updateGCalStatusUI();
+        }
+
+        // 產生未來 14 天的日期陣列（週一至週日皆開放預約）
+        function generateAvailableDates() {
+            availableDates = [];
+            const today = new Date();
+            for (let i = 0; i < 14; i++) {
+                const d = new Date(today);
+                d.setDate(today.getDate() + i);
+                const yyyy = d.getFullYear();
+                const mm = String(d.getMonth() + 1).padStart(2, '0');
+                const dd = String(d.getDate()).padStart(2, '0');
+                const dayOfWeek = d.getDay();
+                availableDates.push({
+                    dateStr: `${yyyy}-${mm}-${dd}`,
+                    monthLabel: `${yyyy} 年 ${d.getMonth() + 1} 月`,
+                    dayNum: d.getDate(),
+                    weekday: WEEKDAYS_ZH[dayOfWeek],
+                    isToday: i === 0,
+                    isClosed: false
+                });
+            }
+        }
+
+        // 載入本機預約資料（若初次開啟則建立示範預約）
+        function loadBookings() {
+            try {
+                const raw = localStorage.getItem(STORAGE_KEY);
+                if (raw) {
+                    bookings = JSON.parse(raw);
+                } else {
+                    seedDemoBookings();
+                }
+            } catch (err) {
+                bookings = [];
+            }
+        }
+
+        function saveBookings() {
+            try {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(bookings));
+            } catch (err) {
+                console.error('儲存資料失敗:', err);
+            }
+        }
+
+        function seedDemoBookings() {
+            const firstOpen = availableDates.find(d => !d.isClosed);
+            if (!firstOpen) return;
+            bookings = [
+                {
+                    id: 'PC-1001',
+                    dateStr: firstOpen.dateStr,
+                    timeSlot: '11:00',
+                    price: FIXED_PRICE,
+                    patientName: '林小姐',
+                    patientPhone: '9876 5432',
+                    notes: '肩頸痠痛',
+                    createdAt: new Date().toISOString()
+                },
+                {
+                    id: 'PC-1002',
+                    dateStr: firstOpen.dateStr,
+                    timeSlot: '15:00',
+                    price: FIXED_PRICE,
+                    patientName: '黃先生',
+                    patientPhone: '6123 4567',
+                    notes: '腰部繃緊',
+                    createdAt: new Date().toISOString()
+                }
+            ];
+            saveBookings();
+        }
+
+        // ==========================================
+        // 4. 介面渲染（日期列、時段表與預約摘要）
+        // ==========================================
+        function renderDateStrip() {
+            const container = document.getElementById('date-strip');
+            const selectedDateObj = availableDates.find(d => d.dateStr === state.dateStr) || availableDates[0];
+            if (selectedDateObj) {
+                document.getElementById('current-month-label').textContent = selectedDateObj.monthLabel;
+            }
+
+            container.innerHTML = availableDates.map(d => {
+                const isSelected = state.dateStr === d.dateStr;
+                if (d.isClosed) {
+                    return `
+                        <button type="button" disabled class="shrink-0 w-16 py-2.5 rounded-xl border border-slate-200 bg-slate-100 text-slate-400 flex flex-col items-center justify-center cursor-not-allowed">
+                            <span class="text-xs">週${d.weekday}</span>
+                            <span class="text-lg font-bold leading-tight my-0.5">${d.dayNum}</span>
+                            <span class="text-[10px]">休診</span>
+                        </button>
+                    `;
+                }
+                return `
+                    <button type="button" onclick="selectDate('${d.dateStr}')" class="shrink-0 w-16 py-2.5 rounded-xl border transition-all flex flex-col items-center justify-center ${isSelected ? 'border-brand-600 bg-brand-600 text-white shadow-md scale-[1.02]' : 'border-slate-200 bg-white text-slate-700 hover:border-brand-300 hover:bg-brand-50/40'}">
+                        <span class="text-xs ${isSelected ? 'text-brand-100' : 'text-slate-500'}">${d.isToday ? '今天' : '週' + d.weekday}</span>
+                        <span class="text-lg font-bold leading-tight my-0.5">${d.dayNum}</span>
+                        <span class="text-[10px] ${isSelected ? 'text-brand-100' : 'text-emerald-600 font-medium'}">可預約</span>
+                    </button>
+                `;
+            }).join('');
+        }
+
+        function selectDate(dateStr) {
+            state.dateStr = dateStr;
+            state.timeSlot = '';
+            renderDateStrip();
+            renderTimeSlots();
+            updateSummary();
+        }
+
+        function renderTimeSlots() {
+            const container = document.getElementById('time-slots-container');
+            if (!state.dateStr) {
+                container.innerHTML = `<p class="text-sm text-slate-500 py-4 text-center">請先選擇預約日期。</p>`;
+                return;
+            }
+
+            const bookedSlots = new Set(
+                bookings.filter(b => b.dateStr === state.dateStr).map(b => b.timeSlot)
+            );
+
+            container.innerHTML = TIME_GROUPS.map(group => `
+                <div>
+                    <h4 class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2.5">${group.label}</h4>
+                    <div class="grid grid-cols-3 sm:grid-cols-4 gap-2.5">
+                        ${group.slots.map(slot => {
+                            const isBooked = bookedSlots.has(slot);
+                            const isSelected = state.timeSlot === slot;
+                            if (isBooked) {
+                                return `
+                                    <button type="button" disabled class="py-3 px-2 rounded-xl border border-slate-200 bg-slate-100 text-slate-400 text-sm font-medium cursor-not-allowed flex flex-col items-center justify-center">
+                                        <span>${slot}</span>
+                                        <span class="text-[10px] mt-0.5">已滿</span>
+                                    </button>
+                                `;
+                            }
+                            return `
+                                <button type="button" onclick="selectTimeSlot('${slot}')" class="py-3 px-2 rounded-xl border text-sm font-semibold transition-all flex flex-col items-center justify-center ${isSelected ? 'border-brand-600 bg-brand-600 text-white shadow-md ring-2 ring-brand-200' : 'border-slate-200 bg-white text-slate-800 hover:border-brand-400 hover:bg-brand-50/40'}">
+                                    <span>${slot}</span>
+                                    <span class="text-[10px] mt-0.5 ${isSelected ? 'text-brand-100' : 'text-emerald-600'}">${isSelected ? '已選擇' : '可預約'}</span>
+                                </button>
+                            `;
+                        }).join('')}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function selectTimeSlot(slot) {
+            state.timeSlot = slot;
+            renderTimeSlots();
+            updateSummary();
+        }
+
+        function updateSummary() {
+            const dateObj = availableDates.find(d => d.dateStr === state.dateStr);
+            document.getElementById('summary-date').textContent = dateObj
+                ? `${dateObj.dateStr} (週${dateObj.weekday})`
+                : '未選擇';
+
+            const timeEl = document.getElementById('summary-time');
+            if (state.timeSlot) {
+                timeEl.textContent = state.timeSlot;
+                timeEl.className = 'font-bold text-brand-700 text-right';
+            } else {
+                timeEl.textContent = '請選擇時段';
+                timeEl.className = 'font-semibold text-amber-600 text-right';
+            }
+            document.getElementById('summary-price').textContent = `HK$${FIXED_PRICE}`;
+        }
+
+        // ==========================================
+        // 5. 表單驗證與提交預約
+        // ==========================================
+        function triggerFormSubmit() {
+            const form = document.getElementById('booking-form');
+            if (typeof form.requestSubmit === 'function') {
+                form.requestSubmit();
+            } else {
+                form.dispatchEvent(new Event('submit', { cancelable: true }));
+            }
+        }
+
+        function handleBookingSubmit(e) {
+            e.preventDefault();
+
+            if (!state.dateStr || !state.timeSlot) {
+                showToast('請先選擇預約日期與時段！');
+                document.getElementById('time-slots-container').scrollIntoView({ behavior: 'smooth', block: 'center' });
+                return;
+            }
+
+            const nameInput = document.getElementById('patient-name');
+            const phoneInput = document.getElementById('patient-phone');
+            const notesInput = document.getElementById('patient-notes');
+
+            const patientName = nameInput.value.trim();
+            const patientPhone = phoneInput.value.trim();
+            const notes = notesInput.value.trim();
+
+            if (!patientName || !patientPhone) {
+                showToast('請填寫客人姓名及聯絡電話！');
+                return;
+            }
+
+            // 檢查時段是否已被預約
+            const isDuplicate = bookings.some(b => b.dateStr === state.dateStr && b.timeSlot === state.timeSlot);
+            if (isDuplicate) {
+                showToast('抱歉，該時段剛剛已被預約，請選擇其他時段。');
+                state.timeSlot = '';
+                renderTimeSlots();
+                updateSummary();
+                return;
+            }
+
+            const newBooking = {
+                id: 'PC-' + Math.floor(1000 + Math.random() * 9000),
+                dateStr: state.dateStr,
+                timeSlot: state.timeSlot,
+                price: FIXED_PRICE,
+                patientName,
+                patientPhone,
+                notes,
+                createdAt: new Date().toISOString()
+            };
+
+            bookings.push(newBooking);
+            saveBookings();
+            lastCreatedBooking = newBooking;
+
+            // 若有設定 Google Apps Script，自動同步至 Google 日曆
+            const autoSynced = syncBookingToGoogleCalendar(newBooking);
+
+            // 重設表單與選中時段
+            e.target.reset();
+            state.timeSlot = '';
+
+            renderTimeSlots();
+            updateSummary();
+            updateBookingBadge();
+            populateAdminDateFilter();
+            openSuccessModal(newBooking, autoSynced);
+        }
+
+        // ==========================================
+        // 6. 預約成功彈窗與 WhatsApp 複製
+        // ==========================================
+        function openSuccessModal(booking, autoSynced) {
+            document.getElementById('modal-ref').textContent = booking.id;
+            document.getElementById('modal-details').innerHTML = `
+                <div class="flex justify-between"><span class="text-slate-500">客人姓名</span><span class="font-semibold text-slate-900">${escapeHtml(booking.patientName)}</span></div>
+                <div class="flex justify-between"><span class="text-slate-500">聯絡電話</span><span class="font-semibold text-slate-900">${escapeHtml(booking.patientPhone)}</span></div>
+                <div class="flex justify-between"><span class="text-slate-500">預約時間</span><span class="font-bold text-brand-700">${booking.dateStr} ${booking.timeSlot} (60分鐘)</span></div>
+                <div class="flex justify-between"><span class="text-slate-500">固定收費</span><span class="font-bold text-slate-900">HK$${booking.price}</span></div>
+                ${booking.notes ? `<div class="flex justify-between gap-4"><span class="text-slate-500 shrink-0">備註</span><span class="text-slate-700 text-right">${escapeHtml(booking.notes)}</span></div>` : ''}
+            `;
+
+            const autoNote = document.getElementById('modal-gcal-auto-note');
+            if (autoSynced) {
+                autoNote.classList.remove('hidden');
+            } else {
+                autoNote.classList.add('hidden');
+            }
+
+            const modal = document.getElementById('success-modal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        function closeSuccessModal() {
+            const modal = document.getElementById('success-modal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+
+        function copyBookingForWhatsApp() {
+            if (!lastCreatedBooking) return;
+            const b = lastCreatedBooking;
+            const text = `【${CLINIC_NAME}－預約確認】\n預約編號：${b.id}\n客人姓名：${b.patientName}\n聯絡電話：${b.patientPhone}\n預約時間：${b.dateStr} ${b.timeSlot}（60分鐘）\n固定收費：HK$${b.price}\n地址：${CLINIC_ADDRESS}\n備註：${b.notes || '無'}`;
+            copyTextToClipboard(text, '已複製預約資料，可直接貼上至 WhatsApp！');
+        }
+
+        // ==========================================
+        // 7. 診所時間表管理總覽 (Admin View)
+        // ==========================================
+        function switchTab(tab) {
+            const bookingView = document.getElementById('view-booking');
+            const scheduleView = document.getElementById('view-schedule');
+            const tabBooking = document.getElementById('tab-booking');
+            const tabSchedule = document.getElementById('tab-schedule');
+
+            if (tab === 'booking') {
+                bookingView.classList.remove('hidden');
+                scheduleView.classList.add('hidden');
+                tabBooking.className = 'px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all bg-white text-brand-700 shadow-sm';
+                tabSchedule.className = 'px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all text-slate-600 hover:text-slate-900 flex items-center gap-1.5';
+                renderTimeSlots();
+            } else {
+                bookingView.classList.add('hidden');
+                scheduleView.classList.remove('hidden');
+                tabSchedule.className = 'px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all bg-white text-brand-700 shadow-sm flex items-center gap-1.5';
+                tabBooking.className = 'px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all text-slate-600 hover:text-slate-900';
+                renderAdminSchedule();
+            }
+        }
+
+        function updateBookingBadge() {
+            document.getElementById('booking-count-badge').textContent = bookings.length;
+        }
+
+        function populateAdminDateFilter() {
+            const select = document.getElementById('admin-date-filter');
+            const currentVal = select.value;
+            const uniqueDates = [...new Set(bookings.map(b => b.dateStr))].sort();
+
+            select.innerHTML = `<option value="ALL">顯示所有日期 (${bookings.length} 筆)</option>` +
+                uniqueDates.map(d => {
+                    const count = bookings.filter(b => b.dateStr === d).length;
+                    return `<option value="${d}">${d} (${count} 筆預約)</option>`;
+                }).join('');
+
+            if ([...select.options].some(o => o.value === currentVal)) {
+                select.value = currentVal;
+            }
+        }
+
+        function renderAdminSchedule() {
+            const filterDate = document.getElementById('admin-date-filter').value;
+            const container = document.getElementById('admin-bookings-list');
+
+            let filtered = filterDate === 'ALL' ? [...bookings] : bookings.filter(b => b.dateStr === filterDate);
+            filtered.sort((a, b) => (a.dateStr + a.timeSlot).localeCompare(b.dateStr + b.timeSlot));
+
+            if (filtered.length === 0) {
+                container.innerHTML = `
+                    <div class="bg-white rounded-2xl border border-slate-200 p-10 text-center">
+                        <p class="text-slate-500 font-medium">目前沒有相關日期的預約記錄。</p>
+                        <button onclick="switchTab('booking')" class="mt-4 px-4 py-2 rounded-xl bg-brand-600 text-white text-sm font-semibold hover:bg-brand-700 transition">前往新增預約</button>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = filtered.map(b => `
+                <div class="bg-white rounded-2xl border border-slate-200 p-4 sm:p-5 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:border-brand-300 transition">
+                    <div class="flex items-start gap-4">
+                        <div class="bg-brand-50 border border-brand-100 rounded-xl px-3.5 py-2.5 text-center shrink-0 min-w-[88px]">
+                            <div class="text-xs font-semibold text-brand-700">${b.dateStr.slice(5)}</div>
+                            <div class="text-lg font-bold text-slate-900">${b.timeSlot}</div>
+                        </div>
+                        <div class="space-y-1">
+                            <div class="flex flex-wrap items-center gap-2">
+                                <span class="font-bold text-slate-900 text-base">${escapeHtml(b.patientName)}</span>
+                                <span class="text-xs font-mono text-slate-500 bg-slate-100 px-2 py-0.5 rounded">${b.id}</span>
+                            </div>
+                            <div class="text-sm text-slate-700 font-medium">固定收費 HK$${b.price || FIXED_PRICE}・60 分鐘</div>
+                            <div class="text-xs text-slate-500 flex flex-wrap gap-x-3 gap-y-1">
+                                <span>電話：${escapeHtml(b.patientPhone)}</span>
+                                ${b.notes ? `<span>備註：${escapeHtml(b.notes)}</span>` : ''}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flex items-center justify-end gap-2 shrink-0 border-t sm:border-t-0 pt-3 sm:pt-0 border-slate-100">
+                        <button onclick="openGoogleCalendarById('${b.id}')" class="px-3.5 py-2 rounded-xl text-xs font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 transition flex items-center gap-1">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                            <span>加入 Google 日曆</span>
+                        </button>
+                        <button onclick="openCancelModal('${b.id}')" class="px-3.5 py-2 rounded-xl text-xs font-semibold text-rose-600 bg-rose-50 hover:bg-rose-100 transition">
+                            取消預約
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function openCancelModal(id) {
+            pendingCancelId = id;
+            const modal = document.getElementById('cancel-modal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+
+            document.getElementById('confirm-cancel-btn').onclick = () => {
+                bookings = bookings.filter(b => b.id !== pendingCancelId);
+                saveBookings();
+                updateBookingBadge();
+                populateAdminDateFilter();
+                renderAdminSchedule();
+                renderTimeSlots();
+                closeCancelModal();
+                showToast('已取消該預約並釋放時段');
+            };
+        }
+
+        function closeCancelModal() {
+            pendingCancelId = null;
+            const modal = document.getElementById('cancel-modal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+
+        function copyDailySchedule() {
+            const filterDate = document.getElementById('admin-date-filter').value;
+            let list = filterDate === 'ALL' ? [...bookings] : bookings.filter(b => b.dateStr === filterDate);
+            list.sort((a, b) => (a.dateStr + a.timeSlot).localeCompare(b.dateStr + b.timeSlot));
+
+            if (list.length === 0) {
+                showToast('目前沒有可複製的預約排程');
+                return;
+            }
+
+            const lines = list.map(b => `• ${b.dateStr} ${b.timeSlot}｜${b.patientName} (${b.patientPhone})｜固定 HK$${b.price || FIXED_PRICE}`);
+            const text = `【${CLINIC_NAME}－預約排程】\n` + lines.join('\n');
+            copyTextToClipboard(text, '已複製預約排程文字！');
+        }
+
+        // ==========================================
+        // 8. Google 日曆整合（一鍵加入 + Apps Script 自動寫入，支援多帳戶）
+        // ==========================================
+        function getGCalWebhookUrl() {
+            try {
+                const saved = (localStorage.getItem(GCAL_WEBHOOK_KEY) || '').trim();
+                return saved || (window.PRESET_CONFIG && window.PRESET_CONFIG.webhook1) || '';
+            } catch (err) {
+                return (window.PRESET_CONFIG && window.PRESET_CONFIG.webhook1) || '';
+            }
+        }
+
+        function getGCalWebhookUrl2() {
+            try {
+                const saved = (localStorage.getItem(GCAL_WEBHOOK_2_KEY) || '').trim();
+                return saved || (window.PRESET_CONFIG && window.PRESET_CONFIG.webhook2) || '';
+            } catch (err) {
+                return (window.PRESET_CONFIG && window.PRESET_CONFIG.webhook2) || '';
+            }
+        }
+
+        function getGCalExtraEmails() {
+            try {
+                const saved = (localStorage.getItem(GCAL_EXTRA_EMAIL_KEY) || '').trim();
+                return saved || (window.PRESET_CONFIG && window.PRESET_CONFIG.extraEmails) || '';
+            } catch (err) {
+                return (window.PRESET_CONFIG && window.PRESET_CONFIG.extraEmails) || '';
+            }
+        }
+
+        function updateGCalStatusUI() {
+            const w1 = getGCalWebhookUrl();
+            const w2 = getGCalWebhookUrl2();
+            const extraEmails = getGCalExtraEmails();
+            const dot = document.getElementById('gcal-status-dot');
+            const statusText = document.getElementById('gcal-status-text');
+
+            const isEnabled = Boolean(w1 || w2);
+            if (dot) {
+                dot.className = isEnabled
+                    ? 'w-2 h-2 rounded-full bg-emerald-500'
+                    : 'w-2 h-2 rounded-full bg-slate-300';
+            }
+
+            if (statusText) {
+                const parts = [];
+                if (w1) parts.push('主要帳戶已啟用自動同步');
+                if (w2) parts.push('第二個帳戶已啟用獨立寫入');
+                if (extraEmails) parts.push(`額外嘉賓：${extraEmails}`);
+                statusText.textContent = parts.length > 0
+                    ? '目前狀態：' + parts.join('｜')
+                    : '目前狀態：尚未啟用自動同步（仍可手動一鍵加入 Google 日曆）';
+            }
+        }
+
+        function openGCalModal() {
+            document.getElementById('gcal-webhook-input').value = getGCalWebhookUrl();
+            document.getElementById('gcal-webhook-2-input').value = getGCalWebhookUrl2();
+            document.getElementById('gcal-extra-email-input').value = getGCalExtraEmails();
+            updateGCalStatusUI();
+            const modal = document.getElementById('gcal-modal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        function closeGCalModal() {
+            const modal = document.getElementById('gcal-modal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+
+        function saveGCalWebhook() {
+            const url1 = document.getElementById('gcal-webhook-input').value.trim();
+            const url2 = document.getElementById('gcal-webhook-2-input').value.trim();
+            const extraEmails = document.getElementById('gcal-extra-email-input').value.trim();
+
+            if (url1 && !url1.startsWith('https://script.google.com/')) {
+                showToast('主要帳戶網址格式不正確，請貼上 Google Apps Script 網址');
+                return;
+            }
+            if (url2 && !url2.startsWith('https://script.google.com/')) {
+                showToast('第二個帳戶網址格式不正確，請貼上 Google Apps Script 網址');
+                return;
+            }
+
+            try {
+                localStorage.setItem(GCAL_WEBHOOK_KEY, url1);
+                localStorage.setItem(GCAL_WEBHOOK_2_KEY, url2);
+                localStorage.setItem(GCAL_EXTRA_EMAIL_KEY, extraEmails);
+            } catch (err) {
+                console.error('儲存 Google 日曆設定失敗:', err);
+            }
+
+            updateGCalStatusUI();
+            closeGCalModal();
+            showToast('已儲存 Google 日曆同步設定！');
+        }
+
+        function clearGCalWebhook() {
+            try {
+                localStorage.removeItem(GCAL_WEBHOOK_KEY);
+                localStorage.removeItem(GCAL_WEBHOOK_2_KEY);
+                localStorage.removeItem(GCAL_EXTRA_EMAIL_KEY);
+            } catch (err) {
+                console.error('重設失敗:', err);
+            }
+            document.getElementById('gcal-webhook-input').value = '';
+            document.getElementById('gcal-webhook-2-input').value = '';
+            document.getElementById('gcal-extra-email-input').value = '';
+            updateGCalStatusUI();
+            showToast('已重設所有 Google 日曆同步設定');
+        }
+
+        function copyAppsScriptCode() {
+            const code = `function doPost(e) {
+  try {
+    var data = JSON.parse(e.postData.contents);
+    var start = new Date(data.dateStr + 'T' + data.timeSlot + ':00+08:00');
+    var durationMin = Number(data.durationMin) || 60;
+    var end = new Date(start.getTime() + durationMin * 60000);
+
+    var title = '【痛症預約】' + data.patientName + ' (' + data.patientPhone + ')';
+    var description =
+      '預約編號：' + data.id + '\\n' +
+      '客人姓名：' + data.patientName + '\\n' +
+      '聯絡電話：' + data.patientPhone + '\\n' +
+      '固定收費：HK$' + data.price + '\\n' +
+      '備註：' + (data.notes || '無');
+
+    var options = {
+      location: data.location || '${CLINIC_ADDRESS}',
+      description: description
+    };
+
+    if (data.guests && String(data.guests).trim() !== '') {
+      options.guests = String(data.guests).trim();
+      options.sendInvites = true;
+    }
+
+    CalendarApp.getDefaultCalendar().createEvent(title, start, end, options);
+
+    return ContentService
+      .createTextOutput(JSON.stringify({ status: 'ok' }))
+      .setMimeType(ContentService.MimeType.JSON);
+  } catch (err) {
+    return ContentService
+      .createTextOutput(JSON.stringify({ status: 'error', message: err.toString() }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+}`;
+            copyTextToClipboard(code, '已複製 Google Apps Script 程式碼！');
+        }
+
+        // 產生 Google 日曆一鍵加入網址（60 分鐘療程，並支援加入額外 Google 帳戶）
+        function buildGoogleCalendarUrl(booking) {
+            const [y, m, d] = booking.dateStr.split('-').map(Number);
+            const [hh, mm] = booking.timeSlot.split(':').map(Number);
+
+            const startDate = new Date(y, m - 1, d, hh, mm, 0);
+            const endDate = new Date(startDate.getTime() + SESSION_DURATION_MIN * 60000);
+
+            const formatLocal = (dt) => {
+                const yyyy = dt.getFullYear();
+                const mo = String(dt.getMonth() + 1).padStart(2, '0');
+                const da = String(dt.getDate()).padStart(2, '0');
+                const ho = String(dt.getHours()).padStart(2, '0');
+                const mi = String(dt.getMinutes()).padStart(2, '0');
+                return `${yyyy}${mo}${da}T${ho}${mi}00`;
+            };
+
+            const title = `【${CLINIC_NAME}預約】${booking.patientName} (${booking.patientPhone})`;
+            const details = [
+                `預約編號：${booking.id}`,
+                `客人姓名：${booking.patientName}`,
+                `聯絡電話：${booking.patientPhone}`,
+                `固定收費：HK$${booking.price || FIXED_PRICE}`,
+                `備註：${booking.notes || '無'}`
+            ].join('\n');
+
+            const params = new URLSearchParams({
+                action: 'TEMPLATE',
+                text: title,
+                dates: `${formatLocal(startDate)}/${formatLocal(endDate)}`,
+                details: details,
+                location: CLINIC_ADDRESS,
+                ctz: 'Asia/Hong_Kong'
+            });
+
+            const extraEmails = getGCalExtraEmails();
+            if (extraEmails) {
+                extraEmails.split(',').map(e => e.trim()).filter(Boolean).forEach(email => {
+                    params.append('add', email);
+                });
+            }
+
+            return `https://calendar.google.com/calendar/render?${params.toString()}`;
+        }
+
+        function openGoogleCalendarForLastBooking() {
+            if (!lastCreatedBooking) return;
+            window.open(buildGoogleCalendarUrl(lastCreatedBooking), '_blank', 'noopener');
+        }
+
+        function openGoogleCalendarById(id) {
+            const target = bookings.find(b => b.id === id);
+            if (!target) return;
+            window.open(buildGoogleCalendarUrl(target), '_blank', 'noopener');
+        }
+
+        // 自動透過 Apps Script 寫入一個或兩個 Google 帳戶的日曆
+        function syncBookingToGoogleCalendar(booking) {
+            const url1 = getGCalWebhookUrl();
+            const url2 = getGCalWebhookUrl2();
+            const extraEmails = getGCalExtraEmails();
+
+            if (!url1 && !url2) return false;
+
+            const basePayload = {
+                id: booking.id,
+                dateStr: booking.dateStr,
+                timeSlot: booking.timeSlot,
+                durationMin: SESSION_DURATION_MIN,
+                price: booking.price || FIXED_PRICE,
+                patientName: booking.patientName,
+                patientPhone: booking.patientPhone,
+                notes: booking.notes || '',
+                location: CLINIC_ADDRESS
+            };
+
+            const sendToWebhook = (url, includeGuests) => {
+                const payload = includeGuests && extraEmails
+                    ? { ...basePayload, guests: extraEmails }
+                    : basePayload;
+
+                fetch(url, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                    body: JSON.stringify(payload)
+                }).catch(err => console.error('Google 日曆自動同步失敗:', err));
+            };
+
+            if (url1) sendToWebhook(url1, true);
+            if (url2) sendToWebhook(url2, !url1);
+
+            return true;
+        }
+
+        // ==========================================
+        // 9. 匯出獨立網頁與通用工具函式
+        // ==========================================
+        function openExportModal() {
+            const liveBox = document.getElementById('live-url-box');
+            const liveInput = document.getElementById('live-url-input');
+            // 若目前已在正式 http/https 網站上運行，顯示可直接複製的客人預約連結
+            if (window.location.protocol === 'http:' || window.location.protocol === 'https:') {
+                const cleanUrl = window.location.origin + window.location.pathname;
+                if (!cleanUrl.includes('about:srcdoc') && !cleanUrl.includes('blob:')) {
+                    liveInput.value = cleanUrl;
+                    liveBox.classList.remove('hidden');
+                }
+            }
+            const modal = document.getElementById('export-modal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        function closeExportModal() {
+            const modal = document.getElementById('export-modal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+
+        function copyLiveUrl() {
+            const url = document.getElementById('live-url-input').value;
+            if (url) {
+                copyTextToClipboard(url, '已複製預約網址，可直接發送給客人！');
+            }
+        }
+
+        // 產生乾淨且內建最新設定的完整 HTML 原始碼
+        function buildStandaloneHtml() {
+            const hideAdminTab = document.getElementById('export-hide-admin').checked;
+            const clone = document.documentElement.cloneNode(true);
+
+            // 將所有彈窗與提示回復為關閉狀態，並預設顯示客人預約畫面
+            ['success-modal', 'cancel-modal', 'gcal-modal', 'export-modal', 'toast'].forEach(id => {
+                const el = clone.querySelector('#' + id);
+                if (el) {
+                    el.classList.add('hidden');
+                    el.classList.remove('flex');
+                }
+            });
+            const bookingView = clone.querySelector('#view-booking');
+            const scheduleView = clone.querySelector('#view-schedule');
+            if (bookingView) bookingView.classList.remove('hidden');
+            if (scheduleView) scheduleView.classList.add('hidden');
+
+            // 寫入目前的 Google 日曆多帳戶設定與後台隱藏選項
+            const presetConfig = {
+                webhook1: getGCalWebhookUrl(),
+                webhook2: getGCalWebhookUrl2(),
+                extraEmails: getGCalExtraEmails(),
+                hideAdminTab: hideAdminTab
+            };
+            const configScript = clone.querySelector('#preset-config');
+            if (configScript) {
+                configScript.textContent = `\n        window.PRESET_CONFIG = ${JSON.stringify(presetConfig, null, 4)};\n    `;
+            }
+
+            return '<!DOCTYPE html>\n' + clone.outerHTML;
+        }
+
+        function downloadStandaloneHtml() {
+            try {
+                const htmlContent = buildStandaloneHtml();
+                const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'index.html';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                showToast('已下載 index.html！拖曳至 Netlify Drop 即可取得網址');
+            } catch (err) {
+                showToast('下載受瀏覽器限制，請改按「複製完整程式碼」');
+            }
+        }
+
+        function copyStandaloneHtmlCode() {
+            const htmlContent = buildStandaloneHtml();
+            copyTextToClipboard(htmlContent, '已複製完整 HTML 程式碼，貼上並存成 index.html 即可上傳！');
+        }
+
+        function copyTextToClipboard(text, successMsg) {
+            const textarea = document.createElement('textarea');
+            textarea.value = text;
+            textarea.style.position = 'fixed';
+            textarea.style.opacity = '0';
+            document.body.appendChild(textarea);
+            textarea.select();
+            try {
+                document.execCommand('copy');
+                showToast(successMsg);
+            } catch (err) {
+                showToast('複製失敗，請手動選取文字');
+            }
+            document.body.removeChild(textarea);
+        }
+
+        let toastTimer = null;
+        function showToast(message) {
+            const toast = document.getElementById('toast');
+            document.getElementById('toast-message').textContent = message;
+            toast.classList.remove('hidden');
+            toast.classList.add('flex');
+            clearTimeout(toastTimer);
+            toastTimer = setTimeout(() => {
+                toast.classList.add('hidden');
+                toast.classList.remove('flex');
+            }, 2800);
+        }
+
+        function escapeHtml(str) {
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;');
+        }
+
+        // 啟動應用程式
+        window.addEventListener('DOMContentLoaded', initApp);
+    </script>
+</body>
+</html>
