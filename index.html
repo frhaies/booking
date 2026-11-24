@@ -422,6 +422,13 @@
                             測試連線
                         </button>
                     </div>
+                    <div class="mt-2 flex flex-wrap items-center gap-2">
+                        <button type="button" onclick="testGcalWrite()" id="btn-test-write"
+                            class="px-3 py-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 text-xs font-semibold transition-all">
+                            測試寫入一筆預約到日曆
+                        </button>
+                        <span class="text-[11px] text-slate-400">（會寫入一筆測試活動，方便直接打開 Google 日曆確認）</span>
+                    </div>
                     <p id="gcal-test-result" class="text-xs mt-1.5 hidden"></p>
                     <p class="text-xs text-slate-500 mt-1">注意：網址結尾必須是 <code class="bg-slate-100 px-1 rounded font-semibold">/exec</code>（不是編輯頁面的 /edit）。</p>
                 </div>
@@ -963,6 +970,11 @@
                     if (result && result.status === 'ok') {
                         syncedToCloud = true;
                         if (result.eventId) newBooking.eventId = result.eventId;
+                    } else {
+                        // 明確阻擋並提示同步失敗，避免客人誤以為已成功同步
+                        showToast('預約同步至診所日曆失敗：' + (result?.message || '請確認 Apps Script 權限已設為「所有人」'), 'error');
+                        setSubmitLoading(false);
+                        return;
                     }
                 }
 
@@ -1027,7 +1039,11 @@
             try {
                 return JSON.parse(text);
             } catch (e) {
-                return { status: 'ok' };
+                // 若收到非 JSON（例如 Google 登入畫面或錯誤頁），代表部署權限未設為「所有人」或網址不正確
+                return {
+                    status: 'error',
+                    message: '無法寫入日曆（收到非 JSON 回應），請確認 Apps Script 存取權限已設為「所有人」且網址為 /exec 結尾'
+                };
             }
         }
 
@@ -1174,6 +1190,55 @@
             }
         }
 
+        // 測試實際寫入一筆預約至 Google 日曆（驗證 POST 寫入權限）
+        async function testGcalWrite() {
+            const url = document.getElementById('gcal-webhook-1').value.trim();
+            const resultEl = document.getElementById('gcal-test-result');
+            const btn = document.getElementById('btn-test-write');
+
+            if (!url || !url.includes('/exec')) {
+                resultEl.className = 'text-xs mt-1.5 text-rose-600 font-medium';
+                resultEl.textContent = '請先貼上正確的 /exec 網頁應用程式網址。';
+                return;
+            }
+
+            btn.disabled = true;
+            btn.textContent = '寫入測試中...';
+            resultEl.className = 'text-xs mt-1.5 text-slate-500';
+            resultEl.textContent = '正在嘗試寫入測試預約到你的 Google 日曆...';
+
+            try {
+                const todayStr = formatDateStr(new Date());
+                const testBooking = {
+                    ref: 'TEST' + String(Date.now()).slice(-4),
+                    name: '系統測試預約(可刪除)',
+                    phone: '0000 0000',
+                    date: todayStr,
+                    time: '09:00',
+                    price: CLINIC_INFO.price,
+                    notes: '此為測試同步用的預約，看到此活動代表寫入 Google 日曆完全正常！'
+                };
+                const extraEmails = document.getElementById('gcal-extra-emails').value.trim();
+                const res = await postBookingToWebhook(url, testBooking, extraEmails);
+
+                if (res && res.status === 'ok') {
+                    resultEl.className = 'text-xs mt-1.5 text-emerald-600 font-semibold';
+                    resultEl.textContent = `✅ 寫入成功！請打開你的 Google 日曆查看今天 (${todayStr}) 09:00 的「系統測試預約(可刪除)」。`;
+                } else if (res && res.status === 'conflict') {
+                    resultEl.className = 'text-xs mt-1.5 text-emerald-600 font-semibold';
+                    resultEl.textContent = `✅ 連線與寫入正常！今天 (${todayStr}) 09:00 已有測試活動，代表你的日曆同步運作中。`;
+                } else {
+                    throw new Error(res?.message || '寫入失敗');
+                }
+            } catch (err) {
+                resultEl.className = 'text-xs mt-1.5 text-rose-600 font-medium';
+                resultEl.textContent = '❌ 寫入失敗：' + (err.message || '請確認 Apps Script 已重新部署且權限為「所有人」。');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '測試寫入一筆預約到日曆';
+            }
+        }
+
         function saveGcalConfig() {
             const config = {
                 webhook1: document.getElementById('gcal-webhook-1').value.trim(),
@@ -1200,6 +1265,7 @@
             const banner = document.getElementById('admin-sync-banner');
             const bannerText = document.getElementById('admin-sync-banner-text');
             const config = getGcalConfig();
+            const presetWebhook = ((window.PRESET_CONFIG && window.PRESET_CONFIG.webhook1) || '').trim();
             const isActive = Boolean(config.webhook1);
 
             if (dot) {
@@ -1209,6 +1275,9 @@
                 if (!isActive) {
                     banner.className = 'rounded-2xl p-4 text-xs sm:text-sm border bg-amber-50 border-amber-200 text-amber-800 flex items-center justify-between gap-3';
                     bannerText.textContent = '⚠️ 尚未設定 Google 日曆雙向同步網址：目前客人預約不會更新到你的日曆，也無法跨裝置同步給其他客人。';
+                } else if (presetWebhook !== config.webhook1) {
+                    banner.className = 'rounded-2xl p-4 text-xs sm:text-sm border bg-rose-50 border-rose-200 text-rose-800 flex items-center justify-between gap-3';
+                    bannerText.textContent = '🚨 注意：你設定的同步網址目前只存在你自己的瀏覽器，尚未寫入網站檔案！請按「匯出網頁 / 取得網址」重新下載 index.html 並覆蓋上傳到 GitHub，客人的預約才會傳到你的日曆。';
                 } else {
                     banner.classList.add('hidden');
                 }
